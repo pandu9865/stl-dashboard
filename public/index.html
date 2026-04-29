@@ -18,7 +18,9 @@
   .sidebar-logo { padding: 20px 18px 16px; border-bottom: 1px solid #1e293b; }
   .sidebar-logo .title { font-size: 13px; font-weight: 800; color: #f8fafc; }
   .sidebar-logo .sub { font-size: 10px; color: #475569; margin-top: 2px; }
+
   .sidebar-section { padding: 16px 12px 8px; font-size: 9px; font-weight: 700; color: #334155; text-transform: uppercase; letter-spacing: 1px; }
+
   .nav-item {
     display: flex; align-items: center; gap: 10px;
     padding: 9px 14px; margin: 1px 8px; border-radius: 8px;
@@ -28,6 +30,31 @@
   .nav-item:hover { background: #1e293b; color: #cbd5e1; }
   .nav-item.active { background: #1d4ed8; color: #fff; font-weight: 600; }
   .nav-item .icon { font-size: 14px; width: 18px; text-align: center; }
+
+  /* Submenu */
+  .nav-parent {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 14px; margin: 1px 8px; border-radius: 8px;
+    cursor: pointer; font-size: 12px; font-weight: 500; color: #64748b;
+    transition: all 0.15s; justify-content: space-between;
+  }
+  .nav-parent:hover { background: #1e293b; color: #cbd5e1; }
+  .nav-parent.open { color: #cbd5e1; }
+  .nav-parent-left { display: flex; align-items: center; gap: 10px; }
+  .nav-arrow { font-size: 10px; transition: transform 0.2s; }
+  .nav-parent.open .nav-arrow { transform: rotate(90deg); }
+
+  .nav-submenu { display: none; }
+  .nav-submenu.open { display: block; }
+  .nav-sub-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 7px 14px 7px 40px; margin: 1px 8px; border-radius: 8px;
+    cursor: pointer; font-size: 11px; font-weight: 500; color: #475569;
+    transition: all 0.15s;
+  }
+  .nav-sub-item:hover { background: #1e293b; color: #94a3b8; }
+  .nav-sub-item.active { background: #1e3a8a; color: #93c5fd; font-weight: 600; }
+
   .sidebar-bottom { margin-top: auto; padding: 12px; border-top: 1px solid #1e293b; font-size: 10px; color: #334155; text-align: center; }
 
   .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
@@ -75,6 +102,15 @@
     padding: 4px 10px; border-radius: 999px; margin-bottom: 16px;
   }
 
+  /* COMING SOON */
+  .coming-soon {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    height: 60vh; gap: 12px;
+  }
+  .coming-soon .cs-icon { font-size: 48px; }
+  .coming-soon h2 { font-size: 20px; font-weight: 800; color: #0f172a; }
+  .coming-soon p { font-size: 13px; color: #94a3b8; }
+
   /* KPI */
   .kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 16px; }
   .kpi-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px 16px; }
@@ -82,7 +118,7 @@
   .kv { font-size: 22px; font-weight: 800; color: #0f172a; line-height: 1; }
   .ks { font-size: 9px; color: #cbd5e1; margin-top: 3px; }
 
-  /* TABLE CARD */
+  /* TABLE */
   .table-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden; margin-bottom: 16px; }
   .table-header {
     padding: 12px 16px; border-bottom: 1px solid #f1f5f9;
@@ -93,15 +129,13 @@
   .frozen-left { flex-shrink: 0; background: #fff; border-right: 2px solid #f1f5f9; z-index: 10; }
   .frozen-left table { border-collapse: collapse; height: 100%; }
   .frozen-left th { background: #f8fafc; padding: 8px 14px; font-size: 9px; color: #94a3b8; font-weight: 700; text-transform: uppercase; text-align: left; border-bottom: 1px solid #f1f5f9; white-space: nowrap; }
-  .frozen-left td { padding: 7px 14px; font-size: 11px; font-weight: 600; color: #475569; border-bottom: 1px solid #f8fafc; white-space: nowrap; }
-
+  .frozen-left td { padding: 8px 14px; font-size: 11px; font-weight: 600; color: #475569; border-bottom: 1px solid #f8fafc; white-space: nowrap; }
   .scroll-right { overflow-x: auto; flex: 1; }
   .scroll-right table { border-collapse: collapse; }
   .scroll-right th { background: #f8fafc; padding: 8px 12px; font-size: 10px; color: #94a3b8; font-weight: 600; text-align: center; white-space: nowrap; border-bottom: 1px solid #f1f5f9; border-left: 1px solid #f1f5f9; }
   .scroll-right td { padding: 7px 12px; font-size: 11px; text-align: center; white-space: nowrap; border-bottom: 1px solid #f8fafc; border-left: 1px solid #f8fafc; color: #64748b; }
   .scroll-right tr:hover td { background: #f8fafc; }
 
-  /* OVERVIEW TABLE - horizontal scroll full */
   .overview-table-wrap { overflow-x: auto; }
   .overview-table { border-collapse: collapse; width: 100%; min-width: 900px; }
   .overview-table thead tr th { background: #f8fafc; padding: 9px 12px; font-size: 10px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.3px; white-space: nowrap; border-bottom: 2px solid #e2e8f0; text-align: center; }
@@ -127,7 +161,6 @@
   .c-red { color: #ef4444; } .c-blue { color: #3b82f6; }
   .bg-green { background: #10b981; } .bg-yellow { background: #f59e0b; } .bg-red { background: #ef4444; }
 
-  /* CHART */
   .chart-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px; margin-bottom: 16px; }
   .chart-card .chart-title { font-size: 11px; font-weight: 700; color: #475569; margin-bottom: 12px; }
   .chart-wrap { position: relative; height: 200px; }
@@ -148,28 +181,44 @@
 <div class="sidebar">
   <div class="sidebar-logo">
     <div class="title">📦 STL Dashboard</div>
-    <div class="sub">Replenishment April 2026</div>
+    <div class="sub">Sentul Warehouse</div>
   </div>
-  <div class="sidebar-section">Overview</div>
+
+  <!-- INVENTORY -->
+  <div class="sidebar-section">Inventory</div>
   <div class="nav-item active" onclick="navigate('overview')" id="nav-overview">
     <span class="icon">📊</span> Overview
   </div>
-  <div class="sidebar-section">Replenishment</div>
-  <div class="nav-item" onclick="navigate('ss-putaway')" id="nav-ss-putaway">
-    <span class="icon">📥</span> SS Putaway
+
+  <!-- Replenish parent -->
+  <div class="nav-parent open" id="parent-replenish" onclick="toggleParent('replenish')">
+    <div class="nav-parent-left"><span class="icon">🔁</span> Replenish</div>
+    <span class="nav-arrow">▶</span>
   </div>
-  <div class="nav-item" onclick="navigate('replenish-system')" id="nav-replenish-system">
-    <span class="icon">🔄</span> Replenish System
+  <div class="nav-submenu open" id="sub-replenish">
+    <div class="nav-sub-item" onclick="navigate('ss-putaway')" id="nav-ss-putaway">📥 SS Putaway</div>
+    <div class="nav-sub-item" onclick="navigate('replenish-system')" id="nav-replenish-system">🔄 Replenish System</div>
+    <div class="nav-sub-item" onclick="navigate('safety-stock')" id="nav-safety-stock">🛡️ Safety Stock</div>
+    <div class="nav-sub-item" onclick="navigate('param-manual')" id="nav-param-manual">✏️ Parameter Manual</div>
+    <div class="nav-sub-item" onclick="navigate('milkrun')" id="nav-milkrun">🚚 Milkrun</div>
   </div>
-  <div class="nav-item" onclick="navigate('safety-stock')" id="nav-safety-stock">
-    <span class="icon">🛡️</span> Safety Stock
+
+  <div class="nav-item" onclick="navigate('putaway')" id="nav-putaway">
+    <span class="icon">📤</span> Putaway
   </div>
-  <div class="nav-item" onclick="navigate('param-manual')" id="nav-param-manual">
-    <span class="icon">✏️</span> Parameter Manual
+  <div class="nav-item" onclick="navigate('troubleshoot')" id="nav-troubleshoot">
+    <span class="icon">🔧</span> Troubleshoot
   </div>
-  <div class="nav-item" onclick="navigate('milkrun')" id="nav-milkrun">
-    <span class="icon">🚚</span> Milkrun
+  <div class="nav-item" onclick="navigate('grouper')" id="nav-grouper">
+    <span class="icon">🗂️</span> Grouper
   </div>
+
+  <!-- INBOUND -->
+  <div class="sidebar-section">Inbound</div>
+  <div class="nav-item" onclick="navigate('inbound')" id="nav-inbound">
+    <span class="icon">🚛</span> Inbound
+  </div>
+
   <div class="sidebar-bottom" id="lastUpdate">-</div>
 </div>
 
@@ -206,23 +255,28 @@ let chartInstances = {};
 
 const SECTION_KEYS = ['ss-putaway','replenish-system','safety-stock','param-manual','milkrun'];
 const PAGE_TITLES  = {
-  'overview':'Overview','ss-putaway':'Safety Stock Putaway',
-  'replenish-system':'Replenish System','safety-stock':'Safety Stock',
-  'param-manual':'Parameter Manual','milkrun':'Milkrun'
+  'overview':'Overview',
+  'ss-putaway':'Safety Stock Putaway',
+  'replenish-system':'Replenish System',
+  'safety-stock':'Safety Stock',
+  'param-manual':'Parameter Manual',
+  'milkrun':'Milkrun',
+  'putaway':'Putaway',
+  'troubleshoot':'Troubleshoot',
+  'grouper':'Grouper',
+  'inbound':'Inbound'
 };
+
+const COMING_SOON_PAGES = ['putaway','troubleshoot','grouper','inbound'];
 
 function pad(n) { return String(n).padStart(2,'0'); }
 function fmtDate(d) { return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; }
 
 function getFromTo() {
-  return {
-    from: document.getElementById('dateFrom').value,
-    to:   document.getElementById('dateTo').value
-  };
+  return { from: document.getElementById('dateFrom').value, to: document.getElementById('dateTo').value };
 }
 
 function inRange(dateStr) {
-  // dateStr = "dd/MM/yyyy" or "dd/MM"
   const { from, to } = getFromTo();
   const parts = dateStr.split('/');
   let iso;
@@ -264,6 +318,13 @@ function destroyCharts() {
   chartInstances = {};
 }
 
+function toggleParent(key) {
+  const parent = document.getElementById('parent-' + key);
+  const sub    = document.getElementById('sub-' + key);
+  parent.classList.toggle('open');
+  sub.classList.toggle('open');
+}
+
 function calcKPI(daily) {
   const active = daily.filter(d => d.forecast>0||d.actual>0);
   return {
@@ -298,26 +359,47 @@ function dateRangeBadge() {
 
 function navigate(page) {
   currentPage = page;
-  document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-  document.getElementById('nav-'+page)?.classList.add('active');
-  document.getElementById('page-title').textContent = PAGE_TITLES[page]||page;
-  if (globalData) { destroyCharts(); renderPage(page); }
+
+  // clear all active
+  document.querySelectorAll('.nav-item, .nav-sub-item').forEach(el => el.classList.remove('active'));
+
+  // set active
+  const navEl = document.getElementById('nav-' + page);
+  if (navEl) navEl.classList.add('active');
+
+  // auto open replenish submenu if submenu item clicked
+  if (SECTION_KEYS.includes(page)) {
+    document.getElementById('parent-replenish').classList.add('open');
+    document.getElementById('sub-replenish').classList.add('open');
+  }
+
+  document.getElementById('page-title').textContent = PAGE_TITLES[page] || page;
+  if (globalData || COMING_SOON_PAGES.includes(page)) { destroyCharts(); renderPage(page); }
 }
 
 function renderPage(page) {
-  if (page==='overview') renderOverview();
+  if (COMING_SOON_PAGES.includes(page)) { renderComingSoon(page); return; }
+  if (page === 'overview') renderOverview();
   else {
     const idx = SECTION_KEYS.indexOf(page);
-    if (idx>=0) renderSection(globalData.sections[idx], idx);
+    if (idx >= 0) renderSection(globalData.sections[idx], idx);
   }
 }
 
-// ── OVERVIEW ──────────────────────────────────────────────────────────────────
+function renderComingSoon(page) {
+  const icons = { putaway:'📤', troubleshoot:'🔧', grouper:'🗂️', inbound:'🚛' };
+  document.getElementById('content').innerHTML = `
+  <div class="coming-soon">
+    <div class="cs-icon">${icons[page]||'🚧'}</div>
+    <h2>${PAGE_TITLES[page]}</h2>
+    <p>Halaman ini sedang dalam pengembangan.</p>
+  </div>`;
+}
+
 function renderOverview() {
   const filtered = (globalRekap||[]).filter(r => inRange(r.tanggal));
   const active   = filtered.filter(r => r.totalTask > 0);
 
-  // summary KPI
   const totTask  = active.reduce((s,r)=>s+r.totalTask,0);
   const totMove  = active.reduce((s,r)=>s+r.qtyMove,0);
   const totPIC   = active.reduce((s,r)=>s+r.pic,0);
@@ -325,11 +407,9 @@ function renderOverview() {
   const avgProd  = active.length ? Math.round(active.reduce((s,r)=>s+r.prodDay,0)/active.length) : 0;
   const frCls    = avgFR>=95?'c-green':avgFR>=80?'c-yellow':'c-red';
 
-  // today highlight
-  const today = new Date();
+  const today    = new Date();
   const todayStr = `${pad(today.getDate())}/${pad(today.getMonth()+1)}/2026`;
 
-  // table rows
   const rows = filtered.map(r => {
     const isToday = r.tanggal === todayStr;
     const off = r.totalTask===0 ? ' col-off' : '';
@@ -350,7 +430,6 @@ function renderOverview() {
     </tr>`;
   }).join('');
 
-  // footer totals
   const totSSInv  = active.reduce((s,r)=>s+r.qtySSInv,0);
   const totSSPut  = active.reduce((s,r)=>s+r.qtySSPut,0);
   const totSys    = active.reduce((s,r)=>s+r.qtySystem,0);
@@ -408,7 +487,6 @@ function renderOverview() {
   </div>`;
 }
 
-// ── SECTION PAGE ──────────────────────────────────────────────────────────────
 function renderSection(sec, idx) {
   const filtered = sec.daily.filter(d => inRange(d.date));
   const k = calcKPI(filtered);
@@ -484,7 +562,6 @@ function renderSection(sec, idx) {
     </div>
   </div>`;
 
-  // render chart after DOM ready
   setTimeout(() => {
     const ctx = document.getElementById('chart_'+idx);
     if (!ctx) return;
@@ -492,67 +569,25 @@ function renderSection(sec, idx) {
       data: {
         labels: filtered.map(d => d.date),
         datasets: [
-          {
-            type: 'bar',
-            label: 'Forecast',
-            data: filtered.map(d => d.forecast),
-            backgroundColor: '#3b82f633',
-            borderColor: '#3b82f6',
-            borderWidth: 1,
-            borderRadius: 3,
-            yAxisID: 'y'
-          },
-          {
-            type: 'bar',
-            label: 'Actual',
-            data: filtered.map(d => d.actual),
-            backgroundColor: '#10b98133',
-            borderColor: '#10b981',
-            borderWidth: 1,
-            borderRadius: 3,
-            yAxisID: 'y'
-          },
-          {
-            type: 'line',
-            label: 'Achievement %',
-            data: filtered.map(d => d.pct||null),
-            borderColor: '#f59e0b',
-            backgroundColor: '#f59e0b22',
-            borderWidth: 2,
-            pointRadius: 3,
-            tension: 0.3,
-            yAxisID: 'y2',
-            fill: false
-          }
+          { type:'bar', label:'Forecast', data:filtered.map(d=>d.forecast), backgroundColor:'#3b82f633', borderColor:'#3b82f6', borderWidth:1, borderRadius:3, yAxisID:'y' },
+          { type:'bar', label:'Actual', data:filtered.map(d=>d.actual), backgroundColor:'#10b98133', borderColor:'#10b981', borderWidth:1, borderRadius:3, yAxisID:'y' },
+          { type:'line', label:'Achievement %', data:filtered.map(d=>d.pct||null), borderColor:'#f59e0b', backgroundColor:'#f59e0b22', borderWidth:2, pointRadius:3, tension:0.3, yAxisID:'y2', fill:false }
         ]
       },
       options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        interaction: { mode: 'index', intersect: false },
-        plugins: {
-          legend: { labels: { color: '#64748b', font: { size: 10 }, boxWidth: 12 } }
-        },
-        scales: {
-          x: { ticks: { color: '#94a3b8', font: { size: 9 }, maxRotation: 45 }, grid: { color: '#f1f5f9' } },
-          y: {
-            position: 'left',
-            ticks: { color: '#94a3b8', font: { size: 9 } },
-            grid: { color: '#f1f5f9' }
-          },
-          y2: {
-            position: 'right',
-            min: 0, max: 120,
-            ticks: { color: '#f59e0b', font: { size: 9 }, callback: v => v+'%' },
-            grid: { drawOnChartArea: false }
-          }
+        responsive:true, maintainAspectRatio:false,
+        interaction:{ mode:'index', intersect:false },
+        plugins:{ legend:{ labels:{ color:'#64748b', font:{ size:10 }, boxWidth:12 } } },
+        scales:{
+          x:{ ticks:{ color:'#94a3b8', font:{ size:9 }, maxRotation:45 }, grid:{ color:'#f1f5f9' } },
+          y:{ position:'left', ticks:{ color:'#94a3b8', font:{ size:9 } }, grid:{ color:'#f1f5f9' } },
+          y2:{ position:'right', min:0, max:120, ticks:{ color:'#f59e0b', font:{ size:9 }, callback:v=>v+'%' }, grid:{ drawOnChartArea:false } }
         }
       }
     });
   }, 50);
 }
 
-// ── LOAD DATA ─────────────────────────────────────────────────────────────────
 async function loadData() {
   document.getElementById('content').innerHTML = '<div class="loading">Loading<span class="dot">.</span><span class="dot">.</span><span class="dot">.</span></div>';
   try {

@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>STL Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', sans-serif; background: #f1f5f9; color: #1e293b; display: flex; height: 100vh; overflow: hidden; }
+
+  .sidebar {
+    width: 220px; flex-shrink: 0;
+    background: #0f172a;
+    display: flex; flex-direction: column;
+    overflow-y: auto;
+  }
+  .sidebar-logo { padding: 20px 18px 16px; border-bottom: 1px solid #1e293b; }
+  .sidebar-logo .title { font-size: 13px; font-weight: 800; color: #f8fafc; }
+  .sidebar-logo .sub { font-size: 10px; color: #475569; margin-top: 2px; }
+  .sidebar-section { padding: 16px 12px 8px; font-size: 9px; font-weight: 700; color: #334155; text-transform: uppercase; letter-spacing: 1px; }
+  .nav-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 14px; margin: 1px 8px; border-radius: 8px;
+    cursor: pointer; font-size: 12px; font-weight: 500; color: #64748b;
+    transition: all 0.15s;
+  }
+  .nav-item:hover { background: #1e293b; color: #cbd5e1; }
+  .nav-item.active { background: #1d4ed8; color: #fff; font-weight: 600; }
+  .nav-item .icon { font-size: 14px; width: 18px; text-align: center; }
+  .sidebar-bottom { margin-top: auto; padding: 12px; border-top: 1px solid #1e293b; font-size: 10px; color: #334155; text-align: center; }
+
+  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+  .topbar {
+    background: #fff; border-bottom: 1px solid #e2e8f0;
+    padding: 12px 24px;
+    display: flex; align-items: center; justify-content: space-between;
+    flex-shrink: 0; gap: 16px; flex-wrap: wrap;
+  }
+  .topbar-left h1 { font-size: 15px; font-weight: 700; color: #0f172a; }
+  .topbar-left .meta { font-size: 11px; color: #94a3b8; }
+
+  .filter-bar { display: flex; align-items: center; gap: 8px; }
+  .filter-bar label { font-size: 11px; color: #64748b; font-weight: 600; }
+  .filter-bar input[type="date"] {
+    padding: 5px 10px; font-size: 11px; border: 1px solid #e2e8f0;
+    border-radius: 6px; color: #1e293b; background: #f8fafc; outline: none;
+  }
+  .filter-bar input[type="date"]:focus { border-color: #3b82f6; }
+  .filter-sep { color: #cbd5e1; }
+
+  .quick-filters { display: flex; gap: 4px; }
+  .qf-btn {
+    padding: 5px 10px; font-size: 10px; font-weight: 600;
+    border: 1px solid #e2e8f0; border-radius: 6px;
+    background: #f8fafc; color: #64748b; cursor: pointer; transition: all 0.15s;
+  }
+  .qf-btn:hover { background: #e2e8f0; }
+  .qf-btn.active { background: #1d4ed8; color: #fff; border-color: #1d4ed8; }
+
+  .refresh-btn {
+    padding: 6px 14px; font-size: 11px; font-weight: 600;
+    background: #f1f5f9; color: #475569;
+    border: 1px solid #e2e8f0; border-radius: 6px; cursor: pointer;
+  }
+  .refresh-btn:hover { background: #e2e8f0; }
+
+  .content { flex: 1; overflow-y: auto; padding: 20px 24px; }
+
+  .date-range-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: #eff6ff; border: 1px solid #bfdbfe;
+    color: #1d4ed8; font-size: 10px; font-weight: 600;
+    padding: 4px 10px; border-radius: 999px; margin-bottom: 16px;
+  }
+
+  /* KPI */
+  .kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 16px; }
+  .kpi-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px 16px; }
+  .kl { font-size: 9px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+  .kv { font-size: 22px; font-weight: 800; color: #0f172a; line-height: 1; }
+  .ks { font-size: 9px; color: #cbd5e1; margin-top: 3px; }
+
+  /* TABLE CARD */
+  .table-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden; margin-bottom: 16px; }
+  .table-header {
+    padding: 12px 16px; border-bottom: 1px solid #f1f5f9;
+    font-size: 11px; font-weight: 700; color: #475569;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .table-container { display: flex; overflow: hidden; }
+  .frozen-left { flex-shrink: 0; background: #fff; border-right: 2px solid #f1f5f9; z-index: 10; }
+  .frozen-left table { border-collapse: collapse; height: 100%; }
+  .frozen-left th { background: #f8fafc; padding: 8px 14px; font-size: 9px; color: #94a3b8; font-weight: 700; text-transform: uppercase; text-align: left; border-bottom: 1px solid #f1f5f9; white-space: nowrap; }
+  .frozen-left td { padding: 7px 14px; font-size: 11px; font-weight: 600; color: #475569; border-bottom: 1px solid #f8fafc; white-space: nowrap; }
+
+  .scroll-right { overflow-x: auto; flex: 1; }
+  .scroll-right table { border-collapse: collapse; }
+  .scroll-right th { background: #f8fafc; padding: 8px 12px; font-size: 10px; color: #94a3b8; font-weight: 600; text-align: center; white-space: nowrap; border-bottom: 1px solid #f1f5f9; border-left: 1px solid #f1f5f9; }
+  .scroll-right td { padding: 7px 12px; font-size: 11px; text-align: center; white-space: nowrap; border-bottom: 1px solid #f8fafc; border-left: 1px solid #f8fafc; color: #64748b; }
+  .scroll-right tr:hover td { background: #f8fafc; }
+
+  /* OVERVIEW TABLE - horizontal scroll full */
+  .overview-table-wrap { overflow-x: auto; }
+  .overview-table { border-collapse: collapse; width: 100%; min-width: 900px; }
+  .overview-table thead tr th { background: #f8fafc; padding: 9px 12px; font-size: 10px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.3px; white-space: nowrap; border-bottom: 2px solid #e2e8f0; text-align: center; }
+  .overview-table thead tr th:first-child { text-align: left; position: sticky; left: 0; background: #f8fafc; z-index: 5; }
+  .overview-table tbody tr td { padding: 8px 12px; font-size: 11px; border-bottom: 1px solid #f8fafc; text-align: center; white-space: nowrap; }
+  .overview-table tbody tr td:first-child { text-align: left; font-weight: 600; color: #334155; position: sticky; left: 0; background: #fff; z-index: 5; }
+  .overview-table tbody tr:hover td { background: #f8fafc; }
+  .overview-table tbody tr:hover td:first-child { background: #f8fafc; }
+  .overview-table tfoot tr td { padding: 9px 12px; font-size: 11px; font-weight: 700; background: #f1f5f9; border-top: 2px solid #e2e8f0; text-align: center; white-space: nowrap; }
+  .overview-table tfoot tr td:first-child { text-align: left; position: sticky; left: 0; background: #f1f5f9; z-index: 5; }
+
+  .val-mp  { color: #0f172a !important; font-weight: 700; }
+  .val-fc  { color: #3b82f6 !important; }
+  .val-act { color: #10b981 !important; }
+  .pct-high { color: #10b981 !important; font-weight: 700; }
+  .pct-mid  { color: #f59e0b !important; font-weight: 700; }
+  .pct-low  { color: #ef4444 !important; font-weight: 700; }
+  .zero { color: #e2e8f0 !important; }
+  .col-off { background: #fafafa; }
+  .col-today { background: #eff6ff !important; }
+
+  .c-green { color: #10b981; } .c-yellow { color: #f59e0b; }
+  .c-red { color: #ef4444; } .c-blue { color: #3b82f6; }
+  .bg-green { background: #10b981; } .bg-yellow { background: #f59e0b; } .bg-red { background: #ef4444; }
+
+  /* CHART */
+  .chart-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px; margin-bottom: 16px; }
+  .chart-card .chart-title { font-size: 11px; font-weight: 700; color: #475569; margin-bottom: 12px; }
+  .chart-wrap { position: relative; height: 200px; }
+
+  .section-page-header { margin-bottom: 16px; }
+  .section-page-header h2 { font-size: 18px; font-weight: 800; color: #0f172a; }
+  .section-page-header p { font-size: 12px; color: #94a3b8; margin-top: 2px; }
+
+  .empty-state { text-align: center; padding: 40px; color: #94a3b8; font-size: 13px; }
+  .loading { text-align: center; padding: 60px; color: #94a3b8; font-size: 14px; }
+  .dot{animation:blink 1.2s infinite;display:inline-block}
+  .dot:nth-child(2){animation-delay:.2s}.dot:nth-child(3){animation-delay:.4s}
+  @keyframes blink{0%,80%,100%{opacity:0}40%{opacity:1}}
+</style>
+</head>
+<body>
+
+<div class="sidebar">
+  <div class="sidebar-logo">
+    <div class="title">📦 STL Dashboard</div>
+    <div class="sub">Replenishment April 2026</div>
+  </div>
+  <div class="sidebar-section">Overview</div>
+  <div class="nav-item active" onclick="navigate('overview')" id="nav-overview">
+    <span class="icon">📊</span> Overview
+  </div>
+  <div class="sidebar-section">Replenishment</div>
+  <div class="nav-item" onclick="navigate('ss-putaway')" id="nav-ss-putaway">
+    <span class="icon">📥</span> SS Putaway
+  </div>
+  <div class="nav-item" onclick="navigate('replenish-system')" id="nav-replenish-system">
+    <span class="icon">🔄</span> Replenish System
+  </div>
+  <div class="nav-item" onclick="navigate('safety-stock')" id="nav-safety-stock">
+    <span class="icon">🛡️</span> Safety Stock
+  </div>
+  <div class="nav-item" onclick="navigate('param-manual')" id="nav-param-manual">
+    <span class="icon">✏️</span> Parameter Manual
+  </div>
+  <div class="nav-item" onclick="navigate('milkrun')" id="nav-milkrun">
+    <span class="icon">🚚</span> Milkrun
+  </div>
+  <div class="sidebar-bottom" id="lastUpdate">-</div>
+</div>
+
+<div class="main">
+  <div class="topbar">
+    <div class="topbar-left">
+      <h1 id="page-title">Overview</h1>
+      <div class="meta">Sentul Warehouse · April 2026</div>
+    </div>
+    <div class="filter-bar">
+      <div class="quick-filters">
+        <button class="qf-btn" onclick="setQuick('today', event)">Today</button>
+        <button class="qf-btn" onclick="setQuick('week', event)">7 Hari</button>
+        <button class="qf-btn active" onclick="setQuick('month', event)">Bulan Ini</button>
+      </div>
+      <div class="filter-sep">|</div>
+      <label>Dari</label>
+      <input type="date" id="dateFrom" onchange="applyFilter()">
+      <label>—</label>
+      <input type="date" id="dateTo" onchange="applyFilter()">
+    </div>
+    <button class="refresh-btn" onclick="loadData()">↻ Refresh</button>
+  </div>
+  <div class="content" id="content">
+    <div class="loading">Loading<span class="dot">.</span><span class="dot">.</span><span class="dot">.</span></div>
+  </div>
+</div>
+
+<script>
+let globalData   = null;
+let globalRekap  = null;
+let currentPage  = 'overview';
+let chartInstances = {};
+
+const SECTION_KEYS = ['ss-putaway','replenish-system','safety-stock','param-manual','milkrun'];
+const PAGE_TITLES  = {
+  'overview':'Overview','ss-putaway':'Safety Stock Putaway',
+  'replenish-system':'Replenish System','safety-stock':'Safety Stock',
+  'param-manual':'Parameter Manual','milkrun':'Milkrun'
+};
+
+function pad(n) { return String(n).padStart(2,'0'); }
+function fmtDate(d) { return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; }
+
+function getFromTo() {
+  return {
+    from: document.getElementById('dateFrom').value,
+    to:   document.getElementById('dateTo').value
+  };
+}
+
+function inRange(dateStr) {
+  // dateStr = "dd/MM/yyyy" or "dd/MM"
+  const { from, to } = getFromTo();
+  const parts = dateStr.split('/');
+  let iso;
+  if (parts.length === 3) iso = `${parts[2]}-${parts[1]}-${parts[0]}`;
+  else iso = `2026-${parts[1]}-${parts[0]}`;
+  if (from && iso < from) return false;
+  if (to   && iso > to)   return false;
+  return true;
+}
+
+function setQuick(q, e) {
+  document.querySelectorAll('.qf-btn').forEach(b => b.classList.remove('active'));
+  if (e && e.target) e.target.classList.add('active');
+  const today = new Date();
+  if (q === 'today') {
+    document.getElementById('dateFrom').value = fmtDate(today);
+    document.getElementById('dateTo').value   = fmtDate(today);
+  } else if (q === 'week') {
+    const from = new Date(today); from.setDate(today.getDate()-6);
+    document.getElementById('dateFrom').value = fmtDate(from);
+    document.getElementById('dateTo').value   = fmtDate(today);
+  } else {
+    const from = new Date(today.getFullYear(), today.getMonth(), 1);
+    const to   = new Date(today.getFullYear(), today.getMonth()+1, 0);
+    document.getElementById('dateFrom').value = fmtDate(from);
+    document.getElementById('dateTo').value   = fmtDate(to);
+  }
+  applyFilter();
+}
+
+function applyFilter() {
+  if (!globalData) return;
+  destroyCharts();
+  renderPage(currentPage);
+}
+
+function destroyCharts() {
+  Object.values(chartInstances).forEach(c => c.destroy());
+  chartInstances = {};
+}
+
+function calcKPI(daily) {
+  const active = daily.filter(d => d.forecast>0||d.actual>0);
+  return {
+    totalMP:  daily.reduce((s,d)=>s+d.mp,0),
+    totalFC:  daily.reduce((s,d)=>s+d.forecast,0),
+    totalAct: daily.reduce((s,d)=>s+d.actual,0),
+    avgPct:   active.length ? Math.round(active.reduce((s,d)=>s+d.pct,0)/active.length) : 0
+  };
+}
+
+function fmt(n) {
+  if (!n||n===0) return '<span class="zero">-</span>';
+  return Number(n).toLocaleString('id-ID');
+}
+function fmtP(n) {
+  if (!n||n===0) return '-';
+  return Number(n).toLocaleString('id-ID');
+}
+function pctClass(p) {
+  if (!p||p===0) return 'zero';
+  if (p>=95) return 'pct-high';
+  if (p>=80) return 'pct-mid';
+  return 'pct-low';
+}
+function dateRangeBadge() {
+  const { from, to } = getFromTo();
+  if (!from && !to) return '';
+  const f = from ? from.split('-').reverse().join('/') : '...';
+  const t = to   ? to.split('-').reverse().join('/')   : '...';
+  return `<div class="date-range-badge">📅 ${f} — ${t}</div>`;
+}
+
+function navigate(page) {
+  currentPage = page;
+  document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+  document.getElementById('nav-'+page)?.classList.add('active');
+  document.getElementById('page-title').textContent = PAGE_TITLES[page]||page;
+  if (globalData) { destroyCharts(); renderPage(page); }
+}
+
+function renderPage(page) {
+  if (page==='overview') renderOverview();
+  else {
+    const idx = SECTION_KEYS.indexOf(page);
+    if (idx>=0) renderSection(globalData.sections[idx], idx);
+  }
+}
+
+// ── OVERVIEW ──────────────────────────────────────────────────────────────────
+function renderOverview() {
+  const filtered = (globalRekap||[]).filter(r => inRange(r.tanggal));
+  const active   = filtered.filter(r => r.totalTask > 0);
+
+  // summary KPI
+  const totTask  = active.reduce((s,r)=>s+r.totalTask,0);
+  const totMove  = active.reduce((s,r)=>s+r.qtyMove,0);
+  const totPIC   = active.reduce((s,r)=>s+r.pic,0);
+  const avgFR    = active.length ? Math.round(active.reduce((s,r)=>s+r.frPct,0)/active.length) : 0;
+  const avgProd  = active.length ? Math.round(active.reduce((s,r)=>s+r.prodDay,0)/active.length) : 0;
+  const frCls    = avgFR>=95?'c-green':avgFR>=80?'c-yellow':'c-red';
+
+  // today highlight
+  const today = new Date();
+  const todayStr = `${pad(today.getDate())}/${pad(today.getMonth()+1)}/2026`;
+
+  // table rows
+  const rows = filtered.map(r => {
+    const isToday = r.tanggal === todayStr;
+    const off = r.totalTask===0 ? ' col-off' : '';
+    const td  = isToday ? ' col-today' : '';
+    const fr  = r.frPct ? `<span class="${pctClass(r.frPct)}">${r.frPct}%</span>` : '<span class="zero">-</span>';
+    return `<tr>
+      <td class="${off}${td}" style="font-weight:600">${r.tanggal}${isToday?' 📍':''}</td>
+      <td class="${off}${td}">${fmt(r.qtySSInv)}</td>
+      <td class="${off}${td}">${fmt(r.qtySSPut)}</td>
+      <td class="${off}${td}">${fmt(r.qtySystem)}</td>
+      <td class="${off}${td}">${fmt(r.qtyManual)}</td>
+      <td class="${off}${td}">${fmt(r.qtyMilkrun)}</td>
+      <td class="${off}${td}" style="font-weight:700;color:#0f172a">${fmtP(r.totalTask)||'-'}</td>
+      <td class="${off}${td} val-act">${fmtP(r.qtyMove)||'-'}</td>
+      <td class="${off}${td}">${r.pic||'-'}</td>
+      <td class="${off}${td}">${fr}</td>
+      <td class="${off}${td}">${r.prodDay ? Math.round(r.prodDay).toLocaleString('id-ID') : '-'}</td>
+    </tr>`;
+  }).join('');
+
+  // footer totals
+  const totSSInv  = active.reduce((s,r)=>s+r.qtySSInv,0);
+  const totSSPut  = active.reduce((s,r)=>s+r.qtySSPut,0);
+  const totSys    = active.reduce((s,r)=>s+r.qtySystem,0);
+  const totMan    = active.reduce((s,r)=>s+r.qtyManual,0);
+  const totMilk   = active.reduce((s,r)=>s+r.qtyMilkrun,0);
+
+  document.getElementById('content').innerHTML = `
+  ${dateRangeBadge()}
+  <div class="kpi-row">
+    <div class="kpi-card"><div class="kl">Total Task</div><div class="kv">${fmtP(totTask)}</div><div class="ks">qty task keseluruhan</div></div>
+    <div class="kpi-card"><div class="kl">Total Qty Move</div><div class="kv c-green">${fmtP(totMove)}</div><div class="ks">actual move</div></div>
+    <div class="kpi-card"><div class="kl">Avg %FR</div><div class="kv ${frCls}">${avgFR?avgFR+'%':'-'}</div><div class="ks">rata-rata fill rate</div></div>
+    <div class="kpi-card"><div class="kl">Avg Prod/Day</div><div class="kv c-blue">${avgProd?avgProd.toLocaleString('id-ID'):'-'}</div><div class="ks">produktivitas harian</div></div>
+  </div>
+  <div class="table-card">
+    <div class="table-header">
+      <span>Rekap Produksi Per Hari</span>
+      <span style="font-size:10px;color:#94a3b8">${active.length} hari aktif</span>
+    </div>
+    <div class="overview-table-wrap">
+      <table class="overview-table">
+        <thead>
+          <tr>
+            <th>Tanggal</th>
+            <th>SS Inventory</th>
+            <th>SS Putaway</th>
+            <th>System</th>
+            <th>Manual</th>
+            <th>Milkrun</th>
+            <th>Total Task</th>
+            <th>Qty Move</th>
+            <th>PIC</th>
+            <th>%FR</th>
+            <th>Prod/Day</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+        <tfoot>
+          <tr>
+            <td>TOTAL</td>
+            <td>${fmtP(totSSInv)}</td>
+            <td>${fmtP(totSSPut)}</td>
+            <td>${fmtP(totSys)}</td>
+            <td>${fmtP(totMan)}</td>
+            <td>${fmtP(totMilk)}</td>
+            <td style="color:#0f172a">${fmtP(totTask)}</td>
+            <td style="color:#10b981">${fmtP(totMove)}</td>
+            <td>${fmtP(totPIC)}</td>
+            <td class="${frCls}">${avgFR?avgFR+'%':'-'}</td>
+            <td style="color:#3b82f6">${avgProd?avgProd.toLocaleString('id-ID'):'-'}</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>`;
+}
+
+// ── SECTION PAGE ──────────────────────────────────────────────────────────────
+function renderSection(sec, idx) {
+  const filtered = sec.daily.filter(d => inRange(d.date));
+  const k = calcKPI(filtered);
+  const pctCls = k.avgPct>=95?'c-green':k.avgPct>=80?'c-yellow':k.avgPct>0?'c-red':'';
+
+  if (filtered.length===0) {
+    document.getElementById('content').innerHTML = dateRangeBadge() + '<div class="empty-state">Tidak ada data untuk rentang tanggal ini.</div>';
+    return;
+  }
+
+  const today    = new Date();
+  const todayStr = `${pad(today.getDate())}/${pad(today.getMonth()+1)}`;
+
+  const dateHeaders = filtered.map(d => {
+    const isTd = d.date===todayStr;
+    return `<th${isTd?' style="background:#eff6ff;color:#1d4ed8"':''}>${d.date}${isTd?' 📍':''}</th>`;
+  }).join('');
+
+  let mpRow='', fcRow='', actRow='', pctRow='';
+  filtered.forEach(d => {
+    const off = (!d.mp&&!d.forecast&&!d.actual)?' col-off':'';
+    const td  = d.date===todayStr?' col-today':'';
+    mpRow  += `<td class="${d.mp?'val-mp':'zero'}${off}${td}">${d.mp||'-'}</td>`;
+    fcRow  += `<td class="${d.forecast?'val-fc':'zero'}${off}${td}">${fmt(d.forecast)}</td>`;
+    actRow += `<td class="${d.actual?'val-act':'zero'}${off}${td}">${fmt(d.actual)}</td>`;
+    pctRow += `<td class="${pctClass(d.pct)}${off}${td}">${d.pct?d.pct+'%':'-'}</td>`;
+  });
+
+  document.getElementById('content').innerHTML = `
+  ${dateRangeBadge()}
+  <div class="section-page-header">
+    <h2>${sec.name}</h2>
+    <p>${sec.forecastLabel}</p>
+  </div>
+  <div class="kpi-row">
+    <div class="kpi-card"><div class="kl">Total MP</div><div class="kv">${k.totalMP}</div><div class="ks">man power days</div></div>
+    <div class="kpi-card"><div class="kl">Total Forecast</div><div class="kv c-blue">${fmtP(k.totalFC)}</div><div class="ks">target qty</div></div>
+    <div class="kpi-card"><div class="kl">Total Actual</div><div class="kv c-green">${fmtP(k.totalAct)}</div><div class="ks">achieved qty</div></div>
+    <div class="kpi-card"><div class="kl">Avg Achievement</div><div class="kv ${pctCls}">${k.avgPct?k.avgPct+'%':'-'}</div><div class="ks">active days only</div></div>
+  </div>
+  <div class="chart-card">
+    <div class="chart-title">Forecast vs Actual · Achievement %</div>
+    <div class="chart-wrap"><canvas id="chart_${idx}"></canvas></div>
+  </div>
+  <div class="table-card">
+    <div class="table-header">
+      <span>Daily Detail</span>
+      <span style="font-size:10px;color:#94a3b8">${filtered.length} hari · scroll → lihat semua</span>
+    </div>
+    <div class="table-container">
+      <div class="frozen-left">
+        <table>
+          <thead><tr><th>Metric</th></tr></thead>
+          <tbody>
+            <tr><td>Total MP</td></tr>
+            <tr><td>${sec.forecastLabel}</td></tr>
+            <tr><td>Actual Move</td></tr>
+            <tr><td>Achievement %</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="scroll-right">
+        <table>
+          <thead><tr>${dateHeaders}</tr></thead>
+          <tbody>
+            <tr>${mpRow}</tr>
+            <tr>${fcRow}</tr>
+            <tr>${actRow}</tr>
+            <tr>${pctRow}</tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>`;
+
+  // render chart after DOM ready
+  setTimeout(() => {
+    const ctx = document.getElementById('chart_'+idx);
+    if (!ctx) return;
+    chartInstances['chart_'+idx] = new Chart(ctx.getContext('2d'), {
+      data: {
+        labels: filtered.map(d => d.date),
+        datasets: [
+          {
+            type: 'bar',
+            label: 'Forecast',
+            data: filtered.map(d => d.forecast),
+            backgroundColor: '#3b82f633',
+            borderColor: '#3b82f6',
+            borderWidth: 1,
+            borderRadius: 3,
+            yAxisID: 'y'
+          },
+          {
+            type: 'bar',
+            label: 'Actual',
+            data: filtered.map(d => d.actual),
+            backgroundColor: '#10b98133',
+            borderColor: '#10b981',
+            borderWidth: 1,
+            borderRadius: 3,
+            yAxisID: 'y'
+          },
+          {
+            type: 'line',
+            label: 'Achievement %',
+            data: filtered.map(d => d.pct||null),
+            borderColor: '#f59e0b',
+            backgroundColor: '#f59e0b22',
+            borderWidth: 2,
+            pointRadius: 3,
+            tension: 0.3,
+            yAxisID: 'y2',
+            fill: false
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { labels: { color: '#64748b', font: { size: 10 }, boxWidth: 12 } }
+        },
+        scales: {
+          x: { ticks: { color: '#94a3b8', font: { size: 9 }, maxRotation: 45 }, grid: { color: '#f1f5f9' } },
+          y: {
+            position: 'left',
+            ticks: { color: '#94a3b8', font: { size: 9 } },
+            grid: { color: '#f1f5f9' }
+          },
+          y2: {
+            position: 'right',
+            min: 0, max: 120,
+            ticks: { color: '#f59e0b', font: { size: 9 }, callback: v => v+'%' },
+            grid: { drawOnChartArea: false }
+          }
+        }
+      }
+    });
+  }, 50);
+}
+
+// ── LOAD DATA ─────────────────────────────────────────────────────────────────
+async function loadData() {
+  document.getElementById('content').innerHTML = '<div class="loading">Loading<span class="dot">.</span><span class="dot">.</span><span class="dot">.</span></div>';
+  try {
+    const [r1, r2] = await Promise.all([
+      fetch('/api/data').then(r=>r.json()),
+      fetch('/api/rekap').then(r=>r.json())
+    ]);
+    globalData  = r1;
+    globalRekap = r2;
+    document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString('id-ID');
+    setQuick('month', {target: document.querySelectorAll('.qf-btn')[2]});
+  } catch(err) {
+    document.getElementById('content').innerHTML = `<div class="loading">Error: ${err.message}</div>`;
+  }
+}
+
+loadData();
+</script>
+</body>
+</html>

@@ -62,6 +62,8 @@
   .coming-soon p { font-size: 13px; color: #94a3b8; }
 
   .kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 16px; }
+  .kpi-row-5 { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 12px; }
+  .kpi-row-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px; }
   .kpi-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px 16px; }
   .kl { font-size: 9px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
   .kv { font-size: 22px; font-weight: 800; color: #0f172a; line-height: 1; }
@@ -111,6 +113,8 @@
   .chart-card .chart-title { font-size: 11px; font-weight: 700; color: #475569; margin-bottom: 12px; }
   .chart-wrap { position: relative; height: 220px; }
 
+  .chart-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+
   .section-page-header { margin-bottom: 16px; }
   .section-page-header h2 { font-size: 18px; font-weight: 800; color: #0f172a; }
   .section-page-header p { font-size: 12px; color: #94a3b8; margin-top: 2px; }
@@ -122,6 +126,38 @@
   .dot{animation:blink 1.2s infinite;display:inline-block}
   .dot:nth-child(2){animation-delay:.2s}.dot:nth-child(3){animation-delay:.4s}
   @keyframes blink{0%,80%,100%{opacity:0}40%{opacity:1}}
+
+  /* ── INBOUND ── */
+  .upload-zone { border: 2px dashed #cbd5e1; border-radius: 12px; padding: 60px 40px; text-align: center; background: #fff; margin-bottom: 20px; cursor: pointer; transition: all 0.2s; }
+  .upload-zone:hover, .upload-zone.drag-over { border-color: #3b82f6; background: #eff6ff; }
+  .upload-zone .uz-icon { font-size: 40px; margin-bottom: 12px; }
+  .upload-zone h3 { font-size: 15px; font-weight: 700; color: #0f172a; margin-bottom: 6px; }
+  .upload-zone p { font-size: 12px; color: #94a3b8; }
+  .upload-zone input[type=file] { display: none; }
+  .upload-btn { display: inline-block; margin-top: 14px; padding: 8px 20px; background: #1d4ed8; color: #fff; font-size: 12px; font-weight: 600; border-radius: 8px; cursor: pointer; }
+
+  .ib-table-wrap { overflow-x: auto; max-height: 500px; overflow-y: auto; }
+  .ib-table { border-collapse: collapse; font-size: 11px; white-space: nowrap; width: 100%; }
+  .ib-table thead { position: sticky; top: 0; z-index: 10; }
+  .ib-table thead tr.th-labels th { background: #f8fafc; padding: 8px 10px; font-size: 9px; font-weight: 700; color: #64748b; text-transform: uppercase; border-bottom: 1px solid #e2e8f0; text-align: left; min-width: 120px; }
+  .ib-table thead tr.th-filters th { background: #f8fafc; padding: 3px 6px; border-bottom: 2px solid #e2e8f0; }
+  .ib-table thead tr.th-filters input { width: 100%; padding: 3px 6px; font-size: 10px; border: 1px solid #e2e8f0; border-radius: 4px; outline: none; background: #fff; color: #334155; }
+  .ib-table thead tr.th-filters input:focus { border-color: #3b82f6; }
+  .ib-table tbody tr td { padding: 7px 10px; border-bottom: 1px solid #f8fafc; color: #475569; }
+  .ib-table tbody tr:hover td { background: #f8fafc; }
+  .ib-table tbody tr.hidden { display: none; }
+
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 10px; font-weight: 600; }
+  .badge-green { background: #dcfce7; color: #15803d; }
+  .badge-yellow { background: #fef9c3; color: #a16207; }
+  .badge-red { background: #fee2e2; color: #b91c1c; }
+  .badge-blue { background: #dbeafe; color: #1d4ed8; }
+
+  .ib-reset-btn { padding: 5px 12px; font-size: 10px; font-weight: 600; background: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0; border-radius: 6px; cursor: pointer; }
+  .ib-reset-btn:hover { background: #e2e8f0; }
+  .ib-row-count { font-size: 10px; color: #94a3b8; }
+  .change-file-btn { padding: 5px 12px; font-size: 10px; font-weight: 600; background: #fff; color: #1d4ed8; border: 1px solid #bfdbfe; border-radius: 6px; cursor: pointer; }
+  .change-file-btn:hover { background: #eff6ff; }
 </style>
 </head>
 <body>
@@ -133,7 +169,7 @@
   </div>
 
   <div class="sidebar-section">Inventory</div>
- <div class="nav-parent open" id="parent-replenish" onclick="toggleParent('replenish')">
+  <div class="nav-parent open" id="parent-replenish" onclick="toggleParent('replenish')">
     <div class="nav-parent-left"><span class="icon">🔁</span> Replenish</div>
     <span class="nav-arrow">▶</span>
   </div>
@@ -146,20 +182,12 @@
     <div class="nav-sub-item" onclick="navigate('milkrun')" id="nav-milkrun">🚚 Milkrun</div>
   </div>
 
-  <div class="nav-item" onclick="navigate('putaway')" id="nav-putaway">
-    <span class="icon">📤</span> Putaway
-  </div>
-  <div class="nav-item" onclick="navigate('troubleshoot')" id="nav-troubleshoot">
-    <span class="icon">🔧</span> Troubleshoot
-  </div>
-  <div class="nav-item" onclick="navigate('grouper')" id="nav-grouper">
-    <span class="icon">🗂️</span> Grouper
-  </div>
+  <div class="nav-item" onclick="navigate('putaway')" id="nav-putaway"><span class="icon">📤</span> Putaway</div>
+  <div class="nav-item" onclick="navigate('troubleshoot')" id="nav-troubleshoot"><span class="icon">🔧</span> Troubleshoot</div>
+  <div class="nav-item" onclick="navigate('grouper')" id="nav-grouper"><span class="icon">🗂️</span> Grouper</div>
 
   <div class="sidebar-section">Inbound</div>
-  <div class="nav-item" onclick="navigate('inbound')" id="nav-inbound">
-    <span class="icon">🚛</span> Inbound
-  </div>
+  <div class="nav-item" onclick="navigate('inbound')" id="nav-inbound"><span class="icon">🚛</span> Inbound</div>
 
   <div class="sidebar-bottom" id="lastUpdate">-</div>
 </div>
@@ -170,7 +198,7 @@
       <h1 id="page-title">Overview</h1>
       <div class="meta">Sentul Warehouse · April 2026</div>
     </div>
-    <div class="filter-bar">
+    <div id="topbar-right-replenish" class="filter-bar">
       <div class="quick-filters">
         <button class="qf-btn" onclick="setQuick('today', event)">Today</button>
         <button class="qf-btn" onclick="setQuick('week', event)">7 Hari</button>
@@ -182,7 +210,12 @@
       <label>—</label>
       <input type="date" id="dateTo" onchange="applyFilter()">
     </div>
-    <button class="refresh-btn" onclick="loadData()">↻ Refresh</button>
+    <div id="topbar-right-inbound" style="display:none; align-items:center; gap:8px;">
+      <span id="ib-file-label" style="font-size:11px;color:#64748b;"></span>
+      <button class="change-file-btn" onclick="triggerIbUpload()">↑ Ganti File</button>
+      <input type="file" id="ib-file-hidden" accept=".csv" style="display:none" onchange="handleIbFile(this.files[0])">
+    </div>
+    <button class="refresh-btn" id="main-refresh-btn" onclick="loadData()">↻ Refresh</button>
   </div>
   <div class="content" id="content">
     <div class="loading">Loading<span class="dot">.</span><span class="dot">.</span><span class="dot">.</span></div>
@@ -198,26 +231,25 @@ let globalSummary = null;
 let currentPage   = 'overview';
 let chartInstances = {};
 
+// ── INBOUND STATE ──
+let inboundRows    = null;
+let inboundHeaders = null;
+let ibFilters      = {};
+
 const SECTION_KEYS = ['ss-putaway','replenish-system','safety-stock','param-manual','milkrun'];
 const PAGE_TITLES  = {
-  'overview': 'Overview Replenish',
-  'ss-putaway': 'Safety Stock Putaway',
-  'replenish-system': 'Replenish System',
-  'safety-stock': 'Safety Stock',
-  'param-manual': 'Parameter Manual',
-  'milkrun': 'Milkrun',
-  'putaway': 'Putaway',
-  'troubleshoot': 'Troubleshoot',
-  'grouper': 'Grouper',
-  'inbound': 'Inbound'
+  'overview':'Overview Replenish','ss-putaway':'Safety Stock Putaway',
+  'replenish-system':'Replenish System','safety-stock':'Safety Stock',
+  'param-manual':'Parameter Manual','milkrun':'Milkrun',
+  'putaway':'Putaway','troubleshoot':'Troubleshoot','grouper':'Grouper','inbound':'Inbound'
 };
-const COMING_SOON_PAGES = ['putaway','troubleshoot','grouper','inbound'];
+const COMING_SOON_PAGES = ['putaway','troubleshoot','grouper'];
 
-const COLOR_FC  = '#8b5cf6';
+const COLOR_FC     = '#8b5cf6';
 const COLOR_FC_BG  = '#8b5cf6cc';
-const COLOR_ACT = '#f97316';
+const COLOR_ACT    = '#f97316';
 const COLOR_ACT_BG = '#f97316cc';
-const COLOR_PCT = '#f59e0b';
+const COLOR_PCT    = '#f59e0b';
 
 function pad(n) { return String(n).padStart(2,'0'); }
 function fmtDate(d) { return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; }
@@ -253,7 +285,7 @@ function setQuick(q, e) {
 }
 
 function applyFilter() { if (!globalData) return; destroyCharts(); renderPage(currentPage); }
-function destroyCharts() { Object.values(chartInstances).forEach(c => c.destroy()); chartInstances = {}; }
+function destroyCharts() { Object.values(chartInstances).forEach(c => { try { c.destroy(); } catch(e){} }); chartInstances = {}; }
 function toggleParent(key) {
   document.getElementById('parent-' + key).classList.toggle('open');
   document.getElementById('sub-' + key).classList.toggle('open');
@@ -297,19 +329,27 @@ function navigate(page) {
     document.getElementById('sub-replenish').classList.add('open');
   }
   document.getElementById('page-title').textContent = PAGE_TITLES[page] || page;
+
+  // toggle topbar
+  const isInbound = page === 'inbound';
+  document.getElementById('topbar-right-replenish').style.display = isInbound ? 'none' : 'flex';
+  document.getElementById('topbar-right-inbound').style.display   = isInbound ? 'flex' : 'none';
+  document.getElementById('main-refresh-btn').style.display       = isInbound ? 'none' : '';
+
   destroyCharts();
   renderPage(page);
 }
 
 function renderPage(page) {
   if (COMING_SOON_PAGES.includes(page)) { renderComingSoon(page); return; }
-  if (page === 'overview') { renderOverview(); return; }
+  if (page === 'overview')  { renderOverview(); return; }
+  if (page === 'inbound')   { renderInbound(); return; }
   const idx = SECTION_KEYS.indexOf(page);
   if (idx >= 0 && globalData) renderSection(globalData.sections[idx], idx);
 }
 
 function renderComingSoon(page) {
-  const icons = { putaway:'📤', troubleshoot:'🔧', grouper:'🗂️', inbound:'🚛' };
+  const icons = { putaway:'📤', troubleshoot:'🔧', grouper:'🗂️' };
   document.getElementById('content').innerHTML = `
   <div class="coming-soon">
     <div class="cs-icon">${icons[page]||'🚧'}</div>
@@ -318,7 +358,341 @@ function renderComingSoon(page) {
   </div>`;
 }
 
-// ── OVERVIEW (combined: rekap + summary + achievement + chart) ────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+// INBOUND
+// ══════════════════════════════════════════════════════════════════════════════
+
+function triggerIbUpload() { document.getElementById('ib-file-hidden').click(); }
+
+function parseCSV(text) {
+  const lines = text.replace(/\r/g,'').split('\n');
+  const headers = parseCSVLine(lines[0]);
+  const rows = [];
+  for (let i = 1; i < lines.length; i++) {
+    if (!lines[i].trim()) continue;
+    const vals = parseCSVLine(lines[i]);
+    const row = {};
+    headers.forEach((h,j) => row[h] = (vals[j]||'').trim());
+    rows.push(row);
+  }
+  return { headers, rows };
+}
+
+function parseCSVLine(line) {
+  const result = []; let cur = ''; let inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    if (line[i] === '"') { inQ = !inQ; }
+    else if (line[i] === ',' && !inQ) { result.push(cur); cur = ''; }
+    else { cur += line[i]; }
+  }
+  result.push(cur);
+  return result;
+}
+
+function handleIbFile(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const parsed = parseCSV(e.target.result);
+    inboundRows    = parsed.rows;
+    inboundHeaders = parsed.headers;
+    ibFilters      = {};
+    document.getElementById('ib-file-label').textContent = `📄 ${file.name} (${inboundRows.length} rows)`;
+    renderInbound();
+  };
+  reader.readAsText(file);
+}
+
+function renderInbound() {
+  if (!inboundRows) {
+    document.getElementById('content').innerHTML = `
+    <div style="max-width:520px;margin:40px auto;">
+      <div class="upload-zone" id="ib-drop-zone" onclick="document.getElementById('ib-upload-input').click()">
+        <div class="uz-icon">🚛</div>
+        <h3>Upload CSV Inbound</h3>
+        <p>Drag & drop file CSV atau klik untuk pilih file</p>
+        <div class="upload-btn">Pilih File CSV</div>
+        <input type="file" id="ib-upload-input" accept=".csv" onchange="handleIbFileFromPage(this.files[0])">
+      </div>
+    </div>`;
+    const dz = document.getElementById('ib-drop-zone');
+    dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag-over'); });
+    dz.addEventListener('dragleave', () => dz.classList.remove('drag-over'));
+    dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('drag-over'); handleIbFileFromPage(e.dataTransfer.files[0]); });
+    return;
+  }
+  renderInboundDashboard();
+}
+
+function handleIbFileFromPage(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const parsed = parseCSV(e.target.result);
+    inboundRows    = parsed.rows;
+    inboundHeaders = parsed.headers;
+    ibFilters      = {};
+    document.getElementById('ib-file-label').textContent = `📄 ${file.name} (${inboundRows.length} rows)`;
+    renderInbound();
+  };
+  reader.readAsText(file);
+}
+
+function ibKPI(rows) {
+  const uniquePO     = new Set(rows.map(r => r['po_number'])).size;
+  const completedPOs = new Set(rows.filter(r => r['po_status']==='09.COMPLETED').map(r => r['po_number'])).size;
+  const partialPOs   = new Set(rows.filter(r => r['po_status']==='08.PARTIALLY_FULFILLED').map(r => r['po_number'])).size;
+  const uniqueSKU    = new Set(rows.map(r => r['sku_number'])).size;
+  const uniqueVendor = new Set(rows.map(r => r['vendor_name'])).size;
+  const uniqueCheck  = new Set(rows.map(r => r['checker_name'])).size;
+  const qtyPO        = rows.reduce((s,r) => s + (parseFloat(r['Quantity PO'])||0), 0);
+  const qtyRcv       = rows.reduce((s,r) => s + (parseFloat(r['Quantity Received Inbound'])||0), 0);
+  const fr           = qtyPO > 0 ? Math.round(qtyRcv / qtyPO * 100) : 0;
+  return { uniquePO, completedPOs, partialPOs, uniqueSKU, uniqueVendor, uniqueCheck, qtyPO, qtyRcv, fr };
+}
+
+function renderInboundDashboard() {
+  const rows = inboundRows;
+  const k    = ibKPI(rows);
+  const frCls = k.fr >= 95 ? 'c-green' : k.fr >= 80 ? 'c-yellow' : 'c-red';
+
+  // PO status by unique PO count
+  const poStatusMap = {};
+  rows.forEach(r => { if (!poStatusMap[r['po_number']]) poStatusMap[r['po_number']] = r['po_status']; });
+  const completedCount = Object.values(poStatusMap).filter(s => s==='09.COMPLETED').length;
+  const partialCount   = Object.values(poStatusMap).filter(s => s==='08.PARTIALLY_FULFILLED').length;
+
+  // Qty by PO status
+  const qtyCompleted = rows.filter(r => r['po_status']==='09.COMPLETED').reduce((s,r) => s+(parseFloat(r['Quantity Received Inbound'])||0),0);
+  const qtyPartial   = rows.filter(r => r['po_status']==='08.PARTIALLY_FULFILLED').reduce((s,r) => s+(parseFloat(r['Quantity Received Inbound'])||0),0);
+
+  // Top 10 vendors
+  const vendorMap = {};
+  rows.forEach(r => { vendorMap[r['vendor_name']] = (vendorMap[r['vendor_name']]||0) + (parseFloat(r['Quantity Received Inbound'])||0); });
+  const topVendors = Object.entries(vendorMap).sort((a,b)=>b[1]-a[1]).slice(0,10);
+
+  // Top 10 L1 categories
+  const l1Map = {};
+  rows.forEach(r => { l1Map[r['L1_category']] = (l1Map[r['L1_category']]||0) + 1; });
+  const topL1 = Object.entries(l1Map).sort((a,b)=>b[1]-a[1]).slice(0,10);
+
+  // Checker performance
+  const checkerMap = {};
+  rows.forEach(r => {
+    const name = r['checker_name'];
+    if (!name) return;
+    if (!checkerMap[name]) checkerMap[name] = { arrRcv:[], rcvDur:[], grnPut:[] };
+    const a = parseFloat(r['Arrival to Receiving Duration, Minutes']);
+    const b = parseFloat(r['Receiving Duration, Minutes']);
+    const c = parseFloat(r['GRN to Putaway Duration, Minutes']);
+    if (!isNaN(a)) checkerMap[name].arrRcv.push(a);
+    if (!isNaN(b)) checkerMap[name].rcvDur.push(b);
+    if (!isNaN(c)) checkerMap[name].grnPut.push(c);
+  });
+  const checkerNames = Object.keys(checkerMap);
+  const avg = arr => arr.length ? Math.round(arr.reduce((s,v)=>s+v,0)/arr.length) : null;
+
+  document.getElementById('content').innerHTML = `
+  <div class="kpi-row-5">
+    <div class="kpi-card"><div class="kl">Total PO</div><div class="kv">${k.uniquePO.toLocaleString('id-ID')}</div><div class="ks">unique PO numbers</div></div>
+    <div class="kpi-card"><div class="kl">PO Completed</div><div class="kv c-green">${completedCount}</div><div class="ks">fully received</div></div>
+    <div class="kpi-card"><div class="kl">PO Partial</div><div class="kv c-yellow">${partialCount}</div><div class="ks">partially fulfilled</div></div>
+    <div class="kpi-card"><div class="kl">SKU Items</div><div class="kv">${k.uniqueSKU.toLocaleString('id-ID')}</div><div class="ks">${rows.length} rows total</div></div>
+    <div class="kpi-card"><div class="kl">Vendors</div><div class="kv">${k.uniqueVendor}</div><div class="ks">${k.uniqueCheck} checkers</div></div>
+  </div>
+  <div class="kpi-row-3">
+    <div class="kpi-card"><div class="kl">Qty PO</div><div class="kv">${k.qtyPO.toLocaleString('id-ID')}</div><div class="ks">total order qty</div></div>
+    <div class="kpi-card"><div class="kl">Qty Received</div><div class="kv c-blue">${k.qtyRcv.toLocaleString('id-ID')}</div><div class="ks">actual received</div></div>
+    <div class="kpi-card"><div class="kl">FR%</div><div class="kv ${frCls}">${k.fr}%</div><div class="ks">Qty Received / Qty PO</div></div>
+  </div>
+
+  <div class="chart-grid-2">
+    <div class="chart-card">
+      <div class="chart-title">PO status — jumlah PO</div>
+      <div class="chart-wrap" style="height:200px"><canvas id="ib_c1" role="img" aria-label="Donut PO status"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Qty received — per status PO</div>
+      <div class="chart-wrap" style="height:200px"><canvas id="ib_c2" role="img" aria-label="Pie qty by status"></canvas></div>
+    </div>
+  </div>
+
+  <div class="chart-card">
+    <div class="chart-title">Top 10 vendors — qty received</div>
+    <div class="chart-wrap" style="height:${topVendors.length*38+60}px"><canvas id="ib_c3" role="img" aria-label="Vendor bar chart"></canvas></div>
+  </div>
+
+  <div class="chart-card">
+    <div class="chart-title">Top 10 L1 categories — jumlah item</div>
+    <div class="chart-wrap" style="height:260px"><canvas id="ib_c4" role="img" aria-label="L1 category bar chart"></canvas></div>
+  </div>
+
+  <div class="chart-card">
+    <div class="chart-title">Checker performance — rata-rata durasi (menit)</div>
+    <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:10px;font-size:10px;color:#64748b;">
+      <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#378ADD;margin-right:4px;"></span>Arrival→Receiving</span>
+      <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#1D9E75;margin-right:4px;"></span>Receiving</span>
+      <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#EF9F27;margin-right:4px;"></span>GRN→Putaway</span>
+    </div>
+    <div class="chart-wrap" style="height:${checkerNames.length*50+80}px"><canvas id="ib_c5" role="img" aria-label="Checker performance"></canvas></div>
+  </div>
+
+  <div class="section-title">📋 Raw Data</div>
+  <div class="table-card">
+    <div class="table-header">
+      <span>Semua Data Inbound</span>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <span class="ib-row-count" id="ib-row-count">${rows.length} rows</span>
+        <button class="ib-reset-btn" onclick="resetIbFilters()">Reset Filter</button>
+      </div>
+    </div>
+    <div class="ib-table-wrap">
+      <table class="ib-table" id="ib-raw-table">
+        <thead>
+          <tr class="th-labels" id="ib-th-labels"></tr>
+          <tr class="th-filters" id="ib-th-filters"></tr>
+        </thead>
+        <tbody id="ib-tbody"></tbody>
+      </table>
+    </div>
+  </div>`;
+
+  // ── Build charts ──
+  setTimeout(() => {
+    // Donut PO status
+    new Chart(document.getElementById('ib_c1').getContext('2d'), {
+      type: 'doughnut',
+      data: { labels: ['Completed','Partially Fulfilled'], datasets: [{ data: [completedCount, partialCount], backgroundColor: ['#1D9E75','#EF9F27'], borderWidth: 0 }] },
+      options: { responsive:true, maintainAspectRatio:false, cutout:'62%',
+        plugins: { legend:{ position:'bottom', labels:{ color:'#475569', font:{size:11}, boxWidth:12 } },
+          datalabels:{ color:'#fff', font:{size:12,weight:'700'}, formatter: v => v } } }
+    });
+
+    // Pie qty by status
+    new Chart(document.getElementById('ib_c2').getContext('2d'), {
+      type: 'doughnut',
+      data: { labels: ['Completed','Partially Fulfilled'], datasets: [{ data: [Math.round(qtyCompleted), Math.round(qtyPartial)], backgroundColor: ['#378ADD','#D85A30'], borderWidth: 0 }] },
+      options: { responsive:true, maintainAspectRatio:false, cutout:'62%',
+        plugins: { legend:{ position:'bottom', labels:{ color:'#475569', font:{size:11}, boxWidth:12 } },
+          datalabels:{ color:'#fff', font:{size:10,weight:'700'}, formatter: v => v >= 1000 ? (v/1000).toFixed(1)+'k' : v } } }
+    });
+
+    // Vendors horizontal bar
+    new Chart(document.getElementById('ib_c3').getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: topVendors.map(v => v[0].length > 28 ? v[0].slice(0,28)+'…' : v[0]),
+        datasets: [{ data: topVendors.map(v => Math.round(v[1])), backgroundColor: '#378ADD', borderRadius: 3 }]
+      },
+      options: { responsive:true, maintainAspectRatio:false, indexAxis:'y',
+        plugins: { legend:{display:false},
+          datalabels:{ anchor:'end', align:'right', color:'#378ADD', font:{size:10,weight:'700'}, formatter:v => v.toLocaleString('id-ID') } },
+        scales: {
+          x: { ticks:{color:'#94a3b8',font:{size:10}}, grid:{color:'#f1f5f9'} },
+          y: { ticks:{color:'#475569',font:{size:10}}, grid:{display:false} }
+        }
+      }
+    });
+
+    // L1 bar
+    new Chart(document.getElementById('ib_c4').getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: topL1.map(v => v[0]),
+        datasets: [{ data: topL1.map(v => v[1]), backgroundColor: '#7F77DD', borderRadius: 3 }]
+      },
+      options: { responsive:true, maintainAspectRatio:false,
+        plugins: { legend:{display:false},
+          datalabels:{ anchor:'end', align:'end', color:'#7F77DD', font:{size:10,weight:'700'}, formatter:v => v } },
+        scales: {
+          x: { ticks:{color:'#475569',font:{size:10},maxRotation:35}, grid:{display:false} },
+          y: { ticks:{color:'#94a3b8',font:{size:10}}, grid:{color:'#f1f5f9'} }
+        }
+      }
+    });
+
+    // Checker grouped bar
+    new Chart(document.getElementById('ib_c5').getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: checkerNames,
+        datasets: [
+          { label:'Arrival→Receiving', data: checkerNames.map(n => avg(checkerMap[n].arrRcv)), backgroundColor:'#378ADD', borderRadius:3 },
+          { label:'Receiving',         data: checkerNames.map(n => avg(checkerMap[n].rcvDur)), backgroundColor:'#1D9E75', borderRadius:3 },
+          { label:'GRN→Putaway',       data: checkerNames.map(n => avg(checkerMap[n].grnPut)), backgroundColor:'#EF9F27', borderRadius:3 }
+        ]
+      },
+      options: { responsive:true, maintainAspectRatio:false, indexAxis:'y',
+        plugins: { legend:{display:false}, datalabels:{display:false} },
+        scales: {
+          x: { ticks:{color:'#94a3b8',font:{size:10}}, grid:{color:'#f1f5f9'} },
+          y: { ticks:{color:'#475569',font:{size:10}}, grid:{display:false} }
+        }
+      }
+    });
+
+    // ── Build raw table ──
+    buildIbTable(rows);
+
+  }, 50);
+}
+
+function buildIbTable(rows) {
+  const headers = inboundHeaders;
+  const thLabels  = document.getElementById('ib-th-labels');
+  const thFilters = document.getElementById('ib-th-filters');
+  const tbody     = document.getElementById('ib-tbody');
+
+  // Header labels
+  thLabels.innerHTML = headers.map(h => `<th title="${h}">${h.length > 20 ? h.slice(0,20)+'…' : h}</th>`).join('');
+
+  // Filter inputs
+  thFilters.innerHTML = headers.map((h,i) => `<th><input type="text" placeholder="filter…" data-col="${i}" oninput="applyIbFilter(this, ${i})"></th>`).join('');
+
+  // Tbody
+  const STATUS_COLORS = { '09.COMPLETED':'badge badge-green', '08.PARTIALLY_FULFILLED':'badge badge-yellow' };
+  const LATE_COLORS   = { 'Late':'badge badge-red', 'Early':'badge badge-green', 'ESLA':'badge badge-red' };
+
+  tbody.innerHTML = rows.map((row,ri) => {
+    const cells = headers.map(h => {
+      let val = row[h] || '';
+      if (h === 'po_status') return `<td><span class="${STATUS_COLORS[val]||''}">${val.replace('09.','').replace('08.','')}</span></td>`;
+      if (h === 'lateness_status' || h === 'arrival_status') return `<td><span class="${LATE_COLORS[val]||''}">${val}</span></td>`;
+      return `<td>${val}</td>`;
+    }).join('');
+    return `<tr data-idx="${ri}">${cells}</tr>`;
+  }).join('');
+}
+
+function applyIbFilter(input, colIdx) {
+  ibFilters[colIdx] = input.value.toLowerCase().trim();
+  const rows = document.querySelectorAll('#ib-tbody tr');
+  let visible = 0;
+  rows.forEach(tr => {
+    const tds = tr.querySelectorAll('td');
+    let show = true;
+    for (const [ci, fv] of Object.entries(ibFilters)) {
+      if (!fv) continue;
+      const td = tds[parseInt(ci)];
+      if (td && !td.textContent.toLowerCase().includes(fv)) { show = false; break; }
+    }
+    tr.classList.toggle('hidden', !show);
+    if (show) visible++;
+  });
+  document.getElementById('ib-row-count').textContent = `${visible} / ${inboundRows.length} rows`;
+}
+
+function resetIbFilters() {
+  ibFilters = {};
+  document.querySelectorAll('#ib-th-filters input').forEach(inp => inp.value = '');
+  document.querySelectorAll('#ib-tbody tr').forEach(tr => tr.classList.remove('hidden'));
+  document.getElementById('ib-row-count').textContent = `${inboundRows.length} rows`;
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// REPLENISH
+// ══════════════════════════════════════════════════════════════════════════════
+
 function renderOverview() {
   const filtered = (globalRekap||[]).filter(r => inRange(r.tanggal));
   const active   = filtered.filter(r => r.totalTask > 0);
@@ -332,7 +706,6 @@ function renderOverview() {
   const today = new Date();
   const todayStr = `${pad(today.getDate())}/${pad(today.getMonth()+1)}/2026`;
 
-  // Rekap rows
   const rows = filtered.map(r => {
     const isToday = r.tanggal === todayStr;
     const off = r.totalTask===0 ? ' col-off' : '';
@@ -360,7 +733,6 @@ function renderOverview() {
   const totMilk  = active.reduce((s,r)=>s+r.qtyMilkrun,0);
   const totPIC   = active.reduce((s,r)=>s+r.pic,0);
 
-  // Summary table (rows 43-57)
   const summaryDates = (globalSummary?.dates||[]).filter(d => inRange(d));
   const summaryRows = (globalSummary?.metrics||[])
     .filter(m => m.label !== 'Description')
@@ -379,7 +751,6 @@ function renderOverview() {
     return `<th>${parts[0]}/${parts[1]}</th>`;
   }).join('');
 
-  // Achievement per section cards
   const sections = globalData?.sections || [];
   const kpiCards = sections.map((sec, i) => {
     const f = sec.daily.filter(d => inRange(d.date));
@@ -409,15 +780,12 @@ function renderOverview() {
     <div class="kpi-card"><div class="kl">Avg %FR</div><div class="kv ${frCls}">${avgFR?avgFR+'%':'-'}</div><div class="ks">rata-rata fill rate</div></div>
     <div class="kpi-card"><div class="kl">Avg Prod/Day</div><div class="kv c-blue">${avgProd?avgProd.toLocaleString('id-ID'):'-'}</div><div class="ks">produktivitas harian</div></div>
   </div>
-
   <div class="section-title">📈 Achievement per Section</div>
   <div class="kpi-row" style="grid-template-columns:repeat(3,1fr)">${kpiCards}</div>
-
   <div class="chart-card">
     <div class="chart-title">Forecast vs Actual — Semua Section</div>
     <div class="chart-wrap" style="height:320px"><canvas id="chart_overview"></canvas></div>
   </div>
-
   <div class="section-title">📋 Rekap Produksi Per Hari</div>
   <div class="table-card">
     <div class="table-header">
@@ -445,7 +813,6 @@ function renderOverview() {
       </table>
     </div>
   </div>
-
   <div class="section-title">📊 Summary Replenishment</div>
   <div class="table-card">
     <div class="table-header">
@@ -460,11 +827,9 @@ function renderOverview() {
     </div>
   </div>`;
 
-  // Render overview chart
   setTimeout(() => {
     const ctx = document.getElementById('chart_overview');
     if (!ctx || !sections.length) return;
-
     const labels  = sections.map(s => s.name);
     const fcData  = sections.map(s => s.daily.filter(d=>inRange(d.date)).reduce((sum,d)=>sum+d.forecast,0));
     const actData = sections.map(s => s.daily.filter(d=>inRange(d.date)).reduce((sum,d)=>sum+d.actual,0));
@@ -472,56 +837,42 @@ function renderOverview() {
       const f = s.daily.filter(d => inRange(d.date) && (d.forecast>0||d.actual>0));
       return f.length ? Math.round(f.reduce((sum,d)=>sum+d.pct,0)/f.length) : 0;
     });
-
     chartInstances['chart_overview'] = new Chart(ctx.getContext('2d'), {
-      data: {
-        labels,
+      data: { labels,
         datasets: [
           { type:'bar', label:'Forecast', data:fcData, backgroundColor:COLOR_FC_BG, borderColor:COLOR_FC, borderWidth:2, borderRadius:6, yAxisID:'y',
-            datalabels:{ anchor:'end', align:'end', color:COLOR_FC, font:{ size:10, weight:'700' }, formatter:fmtShort } },
+            datalabels:{ anchor:'end', align:'end', color:COLOR_FC, font:{size:10,weight:'700'}, formatter:fmtShort } },
           { type:'bar', label:'Actual', data:actData, backgroundColor:COLOR_ACT_BG, borderColor:COLOR_ACT, borderWidth:2, borderRadius:6, yAxisID:'y',
-            datalabels:{ anchor:'end', align:'end', color:COLOR_ACT, font:{ size:10, weight:'700' }, formatter:fmtShort } },
+            datalabels:{ anchor:'end', align:'end', color:COLOR_ACT, font:{size:10,weight:'700'}, formatter:fmtShort } },
           { type:'line', label:'Avg Achievement %', data:pctData, borderColor:COLOR_PCT, backgroundColor:'#fef3c7', borderWidth:3, pointRadius:6, pointBackgroundColor:COLOR_PCT, tension:0.3, yAxisID:'y2', fill:false,
-            datalabels:{ align:'top', color:COLOR_PCT, font:{ size:10, weight:'700' }, formatter:v => v+'%' } }
+            datalabels:{ align:'top', color:COLOR_PCT, font:{size:10,weight:'700'}, formatter:v => v+'%' } }
         ]
       },
-      options: {
-        responsive:true, maintainAspectRatio:false,
-        interaction:{ mode:'index', intersect:false },
-        layout:{ padding:{ top:24 } },
-        plugins:{
-          legend:{ labels:{ color:'#475569', font:{ size:11 }, boxWidth:14 } },
-          tooltip:{ callbacks:{ label: c => c.dataset.yAxisID==='y2' ? ` ${c.dataset.label}: ${c.raw}%` : ` ${c.dataset.label}: ${Number(c.raw).toLocaleString('id-ID')}` } }
-        },
-        scales:{
-          x:{ ticks:{ color:'#64748b', font:{ size:11 } }, grid:{ color:'#f1f5f9' } },
-          y:{ position:'left', ticks:{ color:'#64748b', font:{ size:10 }, callback:v=>Number(v).toLocaleString('id-ID') }, grid:{ color:'#f1f5f9' } },
-          y2:{ position:'right', min:0, max:130, ticks:{ color:COLOR_PCT, font:{ size:10 }, callback:v=>v+'%' }, grid:{ drawOnChartArea:false } }
-        }
+      options: { responsive:true, maintainAspectRatio:false, interaction:{mode:'index',intersect:false}, layout:{padding:{top:24}},
+        plugins:{ legend:{labels:{color:'#475569',font:{size:11},boxWidth:14}},
+          tooltip:{callbacks:{label: c => c.dataset.yAxisID==='y2' ? ` ${c.dataset.label}: ${c.raw}%` : ` ${c.dataset.label}: ${Number(c.raw).toLocaleString('id-ID')}`}} },
+        scales:{ x:{ticks:{color:'#64748b',font:{size:11}},grid:{color:'#f1f5f9'}},
+          y:{position:'left',ticks:{color:'#64748b',font:{size:10},callback:v=>Number(v).toLocaleString('id-ID')},grid:{color:'#f1f5f9'}},
+          y2:{position:'right',min:0,max:130,ticks:{color:COLOR_PCT,font:{size:10},callback:v=>v+'%'},grid:{drawOnChartArea:false}} }
       }
     });
   }, 50);
 }
 
-// ── SECTION PAGE ──────────────────────────────────────────────────────────────
 function renderSection(sec, idx) {
   const filtered = sec.daily.filter(d => inRange(d.date));
   const k = calcKPI(filtered);
   const pctCls = k.avgPct>=95?'c-green':k.avgPct>=80?'c-yellow':k.avgPct>0?'c-red':'';
-
   if (filtered.length===0) {
     document.getElementById('content').innerHTML = dateRangeBadge() + '<div class="empty-state">Tidak ada data untuk rentang tanggal ini.</div>';
     return;
   }
-
   const today = new Date();
   const todayStr = `${pad(today.getDate())}/${pad(today.getMonth()+1)}`;
-
   const dateHeaders = filtered.map(d => {
     const isTd = d.date===todayStr;
     return `<th${isTd?' style="background:#eff6ff;color:#1d4ed8"':''}>${d.date}${isTd?' 📍':''}</th>`;
   }).join('');
-
   let mpRow='', fcRow='', actRow='', pctRow='';
   filtered.forEach(d => {
     const off = (!d.mp&&!d.forecast&&!d.actual)?' col-off':'';
@@ -531,13 +882,9 @@ function renderSection(sec, idx) {
     actRow += `<td class="${d.actual?'val-act':'zero'}${off}${td}">${fmt(d.actual)}</td>`;
     pctRow += `<td class="${pctClass(d.pct)}${off}${td}">${d.pct?d.pct+'%':'-'}</td>`;
   });
-
   document.getElementById('content').innerHTML = `
   ${dateRangeBadge()}
-  <div class="section-page-header">
-    <h2>${sec.name}</h2>
-    <p>${sec.forecastLabel}</p>
-  </div>
+  <div class="section-page-header"><h2>${sec.name}</h2><p>${sec.forecastLabel}</p></div>
   <div class="kpi-row">
     <div class="kpi-card"><div class="kl">Total MP</div><div class="kv">${k.totalMP}</div><div class="ks">man power days</div></div>
     <div class="kpi-card"><div class="kl">Total Forecast</div><div class="kv c-purple">${fmtP(k.totalFC)}</div><div class="ks">target qty</div></div>
@@ -549,14 +896,10 @@ function renderSection(sec, idx) {
     <div class="chart-wrap" style="height:260px"><canvas id="chart_${idx}"></canvas></div>
   </div>
   <div class="table-card">
-    <div class="table-header">
-      <span>Daily Detail</span>
-      <span style="font-size:10px;color:#94a3b8">${filtered.length} hari · scroll → lihat semua</span>
-    </div>
+    <div class="table-header"><span>Daily Detail</span><span style="font-size:10px;color:#94a3b8">${filtered.length} hari · scroll → lihat semua</span></div>
     <div class="table-container">
       <div class="frozen-left">
-        <table>
-          <thead><tr><th>Metric</th></tr></thead>
+        <table><thead><tr><th>Metric</th></tr></thead>
           <tbody>
             <tr><td>Total MP</td></tr>
             <tr><td>${sec.forecastLabel}</td></tr>
@@ -566,47 +909,32 @@ function renderSection(sec, idx) {
         </table>
       </div>
       <div class="scroll-right">
-        <table>
-          <thead><tr>${dateHeaders}</tr></thead>
-          <tbody>
-            <tr>${mpRow}</tr>
-            <tr>${fcRow}</tr>
-            <tr>${actRow}</tr>
-            <tr>${pctRow}</tr>
-          </tbody>
+        <table><thead><tr>${dateHeaders}</tr></thead>
+          <tbody><tr>${mpRow}</tr><tr>${fcRow}</tr><tr>${actRow}</tr><tr>${pctRow}</tr></tbody>
         </table>
       </div>
     </div>
   </div>`;
-
   setTimeout(() => {
     const ctx = document.getElementById('chart_'+idx);
     if (!ctx) return;
     chartInstances['chart_'+idx] = new Chart(ctx.getContext('2d'), {
-      data: {
-        labels: filtered.map(d => d.date),
+      data: { labels: filtered.map(d=>d.date),
         datasets: [
           { type:'bar', label:'Forecast', data:filtered.map(d=>d.forecast), backgroundColor:COLOR_FC_BG, borderColor:COLOR_FC, borderWidth:1, borderRadius:3, yAxisID:'y',
-            datalabels:{ anchor:'end', align:'end', color:COLOR_FC, font:{ size:9, weight:'700' }, formatter:fmtShort, display: ctx => ctx.raw > 0 } },
+            datalabels:{ anchor:'end', align:'end', color:COLOR_FC, font:{size:9,weight:'700'}, formatter:fmtShort, display: ctx => ctx.raw > 0 } },
           { type:'bar', label:'Actual', data:filtered.map(d=>d.actual), backgroundColor:COLOR_ACT_BG, borderColor:COLOR_ACT, borderWidth:1, borderRadius:3, yAxisID:'y',
-            datalabels:{ anchor:'end', align:'end', color:COLOR_ACT, font:{ size:9, weight:'700' }, formatter:fmtShort, display: ctx => ctx.raw > 0 } },
+            datalabels:{ anchor:'end', align:'end', color:COLOR_ACT, font:{size:9,weight:'700'}, formatter:fmtShort, display: ctx => ctx.raw > 0 } },
           { type:'line', label:'Achievement %', data:filtered.map(d=>d.pct||null), borderColor:COLOR_PCT, backgroundColor:'#fef3c722', borderWidth:2, pointRadius:3, pointBackgroundColor:COLOR_PCT, tension:0.3, yAxisID:'y2', fill:false,
-            datalabels:{ display:false } }
+            datalabels:{display:false} }
         ]
       },
-      options: {
-        responsive:true, maintainAspectRatio:false,
-        interaction:{ mode:'index', intersect:false },
-        layout:{ padding:{ top:18 } },
-        plugins:{
-          legend:{ labels:{ color:'#64748b', font:{ size:10 }, boxWidth:12 } },
-          tooltip:{ callbacks:{ label: c => c.dataset.yAxisID==='y2' ? ` ${c.dataset.label}: ${c.raw}%` : ` ${c.dataset.label}: ${Number(c.raw).toLocaleString('id-ID')}` } }
-        },
-        scales:{
-          x:{ ticks:{ color:'#94a3b8', font:{ size:9 }, maxRotation:45 }, grid:{ color:'#f1f5f9' } },
-          y:{ position:'left', ticks:{ color:'#94a3b8', font:{ size:9 }, callback:v=>Number(v).toLocaleString('id-ID') }, grid:{ color:'#f1f5f9' } },
-          y2:{ position:'right', min:0, max:120, ticks:{ color:COLOR_PCT, font:{ size:9 }, callback:v=>v+'%' }, grid:{ drawOnChartArea:false } }
-        }
+      options: { responsive:true, maintainAspectRatio:false, interaction:{mode:'index',intersect:false}, layout:{padding:{top:18}},
+        plugins:{ legend:{labels:{color:'#64748b',font:{size:10},boxWidth:12}},
+          tooltip:{callbacks:{label: c => c.dataset.yAxisID==='y2' ? ` ${c.dataset.label}: ${c.raw}%` : ` ${c.dataset.label}: ${Number(c.raw).toLocaleString('id-ID')}`}} },
+        scales:{ x:{ticks:{color:'#94a3b8',font:{size:9},maxRotation:45},grid:{color:'#f1f5f9'}},
+          y:{position:'left',ticks:{color:'#94a3b8',font:{size:9},callback:v=>Number(v).toLocaleString('id-ID')},grid:{color:'#f1f5f9'}},
+          y2:{position:'right',min:0,max:120,ticks:{color:COLOR_PCT,font:{size:9},callback:v=>v+'%'},grid:{drawOnChartArea:false}} }
       }
     });
   }, 50);

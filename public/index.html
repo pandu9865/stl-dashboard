@@ -472,8 +472,12 @@ function renderInboundDashboard() {
   const topVendors = Object.entries(vendorMap).sort((a,b)=>b[1]-a[1]).slice(0,10);
 
   // Top 10 L1 categories
-  const l1Map = {};
-  rows.forEach(r => { l1Map[r['L1_category']] = (l1Map[r['L1_category']]||0) + 1; });
+  const l1Map = {}; const l1QtyMap = {};
+  rows.forEach(r => {
+    const cat = r['L1_category'];
+    l1Map[cat]    = (l1Map[cat]||0) + 1;
+    l1QtyMap[cat] = (l1QtyMap[cat]||0) + (parseFloat(r['Quantity Received Inbound'])||0);
+  });
   const topL1 = Object.entries(l1Map).sort((a,b)=>b[1]-a[1]).slice(0,10);
 
   // Checker performance
@@ -603,7 +607,12 @@ function renderInboundDashboard() {
       },
       options: { responsive:true, maintainAspectRatio:false,
         plugins: { legend:{display:false},
-          datalabels:{ anchor:'end', align:'end', color:'#7F77DD', font:{size:10,weight:'700'}, formatter:v => v } },
+          datalabels:{ anchor:'end', align:'end', color:'#7F77DD', font:{size:9,weight:'700'},
+            formatter:(v, ctx) => {
+              const cat = topL1[ctx.dataIndex][0];
+              const qty = Math.round(l1QtyMap[cat]||0);
+              return v + ' items | ' + qty.toLocaleString('id-ID') + ' qty';
+            } } },
         scales: {
           x: { ticks:{color:'#475569',font:{size:10},maxRotation:35}, grid:{display:false} },
           y: { ticks:{color:'#94a3b8',font:{size:10}}, grid:{color:'#f1f5f9'} }

@@ -156,13 +156,8 @@ app.get('/api/putaway/debug', async (req, res) => {
       return result;
     };
     const rows = lines.map(parseRow);
-    // Show ALL columns of first few rows
-    const out = rows.slice(0, 5).map((r, i) => {
-      const obj = { row: i };
-      r.forEach((v, j) => { obj['col'+j] = v; });
-      return obj;
-    });
-    res.json({ totalCols: rows[0].length, rows: out });
+    const out = rows.map((r, i) => ({ row: i, col2: r[2], col3: r[3], col4: r[4] }));
+    res.json(out);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

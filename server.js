@@ -64,67 +64,71 @@ app.get('/api/putaway', async (req, res) => {
 
     const rows = lines.map(parseRow);
     const headerRow = rows[0];
+    // dates start at col3 (index 3)
     const dates = headerRow.slice(3).filter(d => d && d.trim() !== '');
 
-    // Dynamic label mapping: find rows by col C (index 2) label
-    const LABEL_MAP = {
-      'FR Accuracy':                     { label: 'FR Accuracy %',              isPct: true  },
-      'Forcast Qty':                     { label: 'Forecast Qty',               isPct: false },
-      'Actual Qty':                      { label: 'Actual Qty',                 isPct: false },
-      'Mezanine':                        { label: 'Mezanine',                   isPct: false },
-      'Spr':                             { label: 'Spr',                        isPct: false },
-      'High Risk':                       { label: 'High Risk',                  isPct: false },
-      'Pallet Floor':                    { label: 'Pallet Floor',               isPct: false },
-      'Stg Galon':                       { label: 'Stg Galon',                  isPct: false },
-      'Stg Relabel':                     { label: 'Stg Relabel',                isPct: false },
-      'Mezanine %':                      { label: 'Mezanine %',                 isPct: true  },
-      'Spr %':                           { label: 'Spr %',                      isPct: true  },
-      'High Risk %':                     { label: 'High Risk %',                isPct: true  },
-      'Pallet Floor %':                  { label: 'Pallet Floor %',             isPct: true  },
-      'Stg Gin %':                       { label: 'Stg Gin %',                  isPct: true  },
-      'Stg Relabel %':                   { label: 'Stg Relabel %',              isPct: true  },
-      'DPF':                             { label: 'DPF',                        isPct: false },
-      'SPR':                             { label: 'SPR',                        isPct: false },
-      'DPF %':                           { label: 'DPF %',                      isPct: true  },
-      'SPR %':                           { label: 'SPR %',                      isPct: true  },
-      'Direct to Mezanine by manual':    { label: 'Direct to Mezanine (Manual)', isPct: false },
-      'Direct to Mezanine by system':    { label: 'Direct to Mezanine (System)', isPct: false },
-      'Direct to Mezanine by manual %':  { label: 'Direct to Mezanine Manual %', isPct: true  },
-      'Direct to Mezanine by system %':  { label: 'Direct to Mezanine System %', isPct: true  },
-      'Total MP':                        { label: 'Total MP',                   isPct: false },
-      'Sla Completion %':                { label: 'SLA Completion %',           isPct: true  },
-      'Actual prod colective Qty':       { label: 'Actual Prod Qty',            isPct: false },
-      'Actual prod colective (% Qty)':   { label: 'Actual Prod %',             isPct: true  },
-    };
+    // Row mapping confirmed from /api/putaway/debug:
+    // row0 = header (dates), row1 = FR Accuracy %, row2 = Forecast Qty,
+    // row3 = Actual Qty, row4 = Mezanine, row5 = Spr, row6 = High Risk,
+    // row7 = Pallet Floor, row8 = Stg Galon, row9 = Stg Relabel,
+    // row10 = blank, row11 = Mezanine %, row12 = Spr %, row13 = High Risk %,
+    // row14 = Pallet Floor %, row15 = Stg Gin %, row16 = Stg Relabel %,
+    // row17 = blank, row18 = DPF, row19 = SPR, row20 = DPF %, row21 = SPR %,
+    // row22 = blank, row23 = Direct Manual, row24 = Direct System,
+    // row25 = Direct Manual %, row26 = Direct System %,
+    // row27 = blank, row28 = Total MP, row29 = SLA %, row30 = Actual Prod Qty, row31 = Actual Prod %
+    const METRIC_ROWS = [
+      { rowIdx: 1,  label: 'FR Accuracy %',              isPct: true  },
+      { rowIdx: 2,  label: 'Forecast Qty',               isPct: false },
+      { rowIdx: 3,  label: 'Actual Qty',                 isPct: false },
+      { rowIdx: 4,  label: 'Mezanine',                   isPct: false },
+      { rowIdx: 5,  label: 'Spr',                        isPct: false },
+      { rowIdx: 6,  label: 'High Risk',                  isPct: false },
+      { rowIdx: 7,  label: 'Pallet Floor',               isPct: false },
+      { rowIdx: 8,  label: 'Stg Galon',                  isPct: false },
+      { rowIdx: 9,  label: 'Stg Relabel',                isPct: false },
+      { rowIdx: 11, label: 'Mezanine %',                 isPct: true  },
+      { rowIdx: 12, label: 'Spr %',                      isPct: true  },
+      { rowIdx: 13, label: 'High Risk %',                isPct: true  },
+      { rowIdx: 14, label: 'Pallet Floor %',             isPct: true  },
+      { rowIdx: 15, label: 'Stg Gin %',                  isPct: true  },
+      { rowIdx: 16, label: 'Stg Relabel %',              isPct: true  },
+      { rowIdx: 18, label: 'DPF',                        isPct: false },
+      { rowIdx: 19, label: 'SPR',                        isPct: false },
+      { rowIdx: 20, label: 'DPF %',                      isPct: true  },
+      { rowIdx: 21, label: 'SPR %',                      isPct: true  },
+      { rowIdx: 23, label: 'Direct to Mezanine (Manual)',isPct: false },
+      { rowIdx: 24, label: 'Direct to Mezanine (System)',isPct: false },
+      { rowIdx: 25, label: 'Direct to Mezanine Manual %',isPct: true  },
+      { rowIdx: 26, label: 'Direct to Mezanine System %',isPct: true  },
+      { rowIdx: 28, label: 'Total MP',                   isPct: false },
+      { rowIdx: 29, label: 'SLA Completion %',           isPct: true  },
+      { rowIdx: 30, label: 'Actual Prod Qty',            isPct: false },
+      { rowIdx: 31, label: 'Actual Prod %',              isPct: true  },
+    ];
 
     const metrics = [];
-    let fcRowData = null, actRowData = null, mpRowData = null;
+    let fcDaily = null, actDaily = null, mpDaily = null;
 
-    for (let i = 1; i < rows.length; i++) {
-      const row = rows[i];
-      const labelRaw = (row[2] || '').trim();
-      if (!labelRaw) continue;
-
-      const meta = LABEL_MAP[labelRaw];
-      if (!meta) continue;
-
+    for (const meta of METRIC_ROWS) {
+      const row = rows[meta.rowIdx];
+      if (!row) continue;
       const daily = {};
-      dates.forEach((d, j) => {
-        const raw = (row[3 + j] || '').replace('%', '').replace(',', '.').trim();
+      dates.forEach((d, i) => {
+        const raw = (row[3 + i] || '').replace('%', '').replace(/,/g, '').trim();
         const val = parseFloat(raw);
         daily[d] = isNaN(val) ? null : val;
       });
       metrics.push({ label: meta.label, isPct: meta.isPct, daily });
-
-      if (meta.label === 'Forecast Qty') fcRowData = daily;
-      if (meta.label === 'Actual Qty')   actRowData = daily;
-      if (meta.label === 'Total MP')     mpRowData  = daily;
+      if (meta.label === 'Forecast Qty') fcDaily  = daily;
+      if (meta.label === 'Actual Qty')   actDaily = daily;
+      if (meta.label === 'Total MP')     mpDaily  = daily;
     }
 
     const sumDaily = (d) => d ? Object.values(d).reduce((s, v) => s + (v || 0), 0) : 0;
-    const totalFC  = Math.round(sumDaily(fcRowData));
-    const totalAct = Math.round(sumDaily(actRowData));
-    const totalMP  = Math.round(sumDaily(mpRowData));
+    const totalFC  = Math.round(sumDaily(fcDaily));
+    const totalAct = Math.round(sumDaily(actDaily));
+    const totalMP  = Math.round(sumDaily(mpDaily));
     const fr = totalFC > 0 ? Math.round(totalAct / totalFC * 100) : 0;
 
     res.json({ dates, metrics, kpi: { totalFC, totalAct, totalMP, fr } });

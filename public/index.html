@@ -236,6 +236,9 @@ let inboundRows    = null;
 let inboundHeaders = null;
 let ibFilters      = {};
 
+// ── PUTAWAY STATE ──
+let globalPutaway  = null;
+
 const SECTION_KEYS = ['ss-putaway','replenish-system','safety-stock','param-manual','milkrun'];
 const PAGE_TITLES  = {
   'overview':'Overview Replenish','ss-putaway':'Safety Stock Putaway',
@@ -243,7 +246,7 @@ const PAGE_TITLES  = {
   'param-manual':'Parameter Manual','milkrun':'Milkrun',
   'putaway':'Putaway','troubleshoot':'Troubleshoot','grouper':'Grouper','inbound':'Inbound'
 };
-const COMING_SOON_PAGES = ['putaway','troubleshoot','grouper'];
+const COMING_SOON_PAGES = ['troubleshoot','grouper'];
 
 const COLOR_FC     = '#8b5cf6';
 const COLOR_FC_BG  = '#8b5cf6cc';
@@ -344,6 +347,7 @@ function renderPage(page) {
   if (COMING_SOON_PAGES.includes(page)) { renderComingSoon(page); return; }
   if (page === 'overview')  { renderOverview(); return; }
   if (page === 'inbound')   { renderInbound(); return; }
+  if (page === 'putaway')   { renderPutaway(); return; }
   const idx = SECTION_KEYS.indexOf(page);
   if (idx >= 0 && globalData) renderSection(globalData.sections[idx], idx);
 }
@@ -472,8 +476,12 @@ function renderInboundDashboard() {
   const topVendors = Object.entries(vendorMap).sort((a,b)=>b[1]-a[1]).slice(0,10);
 
   // Top 10 L1 categories
-  const l1Map = {};
-  rows.forEach(r => { l1Map[r['L1_category']] = (l1Map[r['L1_category']]||0) + 1; });
+  const l1Map = {}; const l1QtyMap = {};
+  rows.forEach(r => {
+    const cat = r['L1_category'];
+    l1Map[cat]    = (l1Map[cat]||0) + 1;
+    l1QtyMap[cat] = (l1QtyMap[cat]||0) + (parseFloat(r['Quantity Received Inbound'])||0);
+  });
   const topL1 = Object.entries(l1Map).sort((a,b)=>b[1]-a[1]).slice(0,10);
 
   // Checker performance
@@ -603,7 +611,12 @@ function renderInboundDashboard() {
       },
       options: { responsive:true, maintainAspectRatio:false,
         plugins: { legend:{display:false},
-          datalabels:{ anchor:'end', align:'end', color:'#7F77DD', font:{size:10,weight:'700'}, formatter:v => v } },
+          datalabels:{ anchor:'end', align:'end', color:'#7F77DD', font:{size:9,weight:'700'},
+            formatter:(v, ctx) => {
+              const cat = topL1[ctx.dataIndex][0];
+              const qty = Math.round(l1QtyMap[cat]||0);
+              return v + ' items | ' + qty.toLocaleString('id-ID') + ' qty';
+            } } },
         scales: {
           x: { ticks:{color:'#475569',font:{size:10},maxRotation:35}, grid:{display:false} },
           y: { ticks:{color:'#94a3b8',font:{size:10}}, grid:{color:'#f1f5f9'} }
@@ -623,7 +636,8 @@ function renderInboundDashboard() {
         ]
       },
       options: { responsive:true, maintainAspectRatio:false, indexAxis:'y',
-        plugins: { legend:{display:false}, datalabels:{display:false} },
+        plugins: { legend:{display:false},
+          datalabels:{ anchor:'end', align:'right', font:{size:9,weight:'700'}, formatter: v => v != null ? v+' mnt' : '', color: ctx => ['#378ADD','#1D9E75','#EF9F27'][ctx.datasetIndex] } },
         scales: {
           x: { ticks:{color:'#94a3b8',font:{size:10}}, grid:{color:'#f1f5f9'} },
           y: { ticks:{color:'#475569',font:{size:10}}, grid:{display:false} }
@@ -690,8 +704,179 @@ function resetIbFilters() {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// REPLENISH
+// PUTAWAY
 // ══════════════════════════════════════════════════════════════════════════════
+
+async function renderPutaway() {
+  if (!globalPutaway) {
+    document.getElementById('content').innerHTML = '<div class="loading">Loading putaway<span class="dot">.</span><span class="dot">.</span><span class="dot">.</span></div>';
+    try {
+      globalPutaway = await fetch('/api/putaway').then(r => r.json());
+    } catch(e) {
+      document.getElementById('content').innerHTML = `<div class="loading">Error: ${e.message}</div>`;
+      return;
+    }
+  }
+
+  const { dates, metrics, kpi } = globalPutaway;
+  const frCls = kpi.fr >= 95 ? 'c-green' : kpi.fr >= 80 ? 'c-yellow' : 'c-red';
+
+  // Filter dates by topbar date range
+  const { from, to } = getFromTo();
+  const filteredDates = dates.filter(d => {
+    // d format: "1 May" or "1 May 2026" - normalize to YYYY-MM-DD
+    const months = {Jan:'01',Feb:'02',Mar:'03',Apr:'04',May:'05',Jun:'06',Jul:'07',Aug:'08',Sep:'09',Oct:'10',Nov:'11',Dec:'12'};
+    const parts = d.trim().split(' ');
+    const day = parts[0].padStart(2,'0');
+    const mon = months[parts[1]] || '05';
+    const year = parts[2] || '2026';
+    const iso = `${year}-${mon}-${day}`;
+    if (from && iso < from) return false;
+    if (to   && iso > to)   return false;
+    return true;
+  });
+
+  // Compute filtered KPI
+  const fcMetric  = metrics.find(m => m.label === 'Forecast Qty');
+  const actMetric = metrics.find(m => m.label === 'Actual Qty');
+  const mpMetric  = metrics.find(m => m.label === 'Total MP');
+  const frMetric  = metrics.find(m => m.label === 'FR Accuracy %');
+
+  const sumD = (metric) => metric ? filteredDates.reduce((s,d) => s+(metric.daily[d]||0),0) : 0;
+  const fFC  = sumD(fcMetric);
+  const fAct = sumD(actMetric);
+  const fMP  = sumD(mpMetric);
+  const fFR  = fFC > 0 ? Math.round(fAct/fFC*100) : 0;
+  const fFRCls = fFR >= 95 ? 'c-green' : fFR >= 80 ? 'c-yellow' : 'c-red';
+
+  // Build metrics table rows
+  const PCT_METRICS = metrics.filter(m => m.isPct);
+  const QTY_METRICS = metrics.filter(m => !m.isPct);
+
+  const buildTableRows = (metricList) => metricList.map(m => {
+    const cells = filteredDates.map(d => {
+      const v = m.daily[d];
+      if (v === null || v === undefined) return '<td><span class="zero">-</span></td>';
+      if (m.isPct) {
+        const pct = v > 1 ? v : v * 100;
+        const cls = pct >= 95 ? 'pct-high' : pct >= 80 ? 'pct-mid' : pct > 0 ? 'pct-low' : 'zero';
+        return `<td class="${cls}">${Math.round(pct)}%</td>`;
+      }
+      return `<td>${v > 0 ? v.toLocaleString('id-ID') : '<span class="zero">-</span>'}</td>`;
+    }).join('');
+    return `<tr><td>${m.label}</td>${cells}</tr>`;
+  }).join('');
+
+  const dateHeaders = filteredDates.map(d => `<th>${d}</th>`).join('');
+
+  // Zone breakdown for chart
+  const zoneMetrics = ['Mezanine','Spr','High Risk','Pallet Floor','Stg Galon','Stg Relabel'];
+  const zoneColors  = ['#378ADD','#1D9E75','#EF9F27','#7F77DD','#E24B4A','#20B2AA'];
+  const zoneData    = zoneMetrics.map(name => {
+    const m = metrics.find(x => x.label === name);
+    return filteredDates.reduce((s,d) => s + (m?.daily[d]||0), 0);
+  });
+
+  document.getElementById('content').innerHTML = `
+  ${dateRangeBadge()}
+  <div class="kpi-row">
+    <div class="kpi-card"><div class="kl">Total MP</div><div class="kv">${Math.round(fMP).toLocaleString('id-ID')}</div><div class="ks">man power days</div></div>
+    <div class="kpi-card"><div class="kl">Forecast Qty</div><div class="kv c-purple">${Math.round(fFC).toLocaleString('id-ID')}</div><div class="ks">target putaway</div></div>
+    <div class="kpi-card"><div class="kl">Actual Qty</div><div class="kv c-orange">${Math.round(fAct).toLocaleString('id-ID')}</div><div class="ks">actual putaway</div></div>
+    <div class="kpi-card"><div class="kl">FR%</div><div class="kv ${fFRCls}">${fFR ? fFR+'%' : '-'}</div><div class="ks">Actual / Forecast</div></div>
+  </div>
+
+  <div class="chart-grid-2">
+    <div class="chart-card">
+      <div class="chart-title">Forecast vs Actual Putaway — per hari</div>
+      <div class="chart-wrap" style="height:240px"><canvas id="pw_chart_daily"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Breakdown zona — total qty</div>
+      <div class="chart-wrap" style="height:240px"><canvas id="pw_chart_zone"></canvas></div>
+    </div>
+  </div>
+
+  <div class="section-title">📋 Metrics per Hari — Qty</div>
+  <div class="table-card">
+    <div class="table-header"><span>Putaway Qty Detail</span><span style="font-size:10px;color:#94a3b8">scroll → lihat semua</span></div>
+    <div class="overview-table-wrap">
+      <table class="overview-table">
+        <thead><tr><th style="min-width:200px">Metric</th>${dateHeaders}</tr></thead>
+        <tbody>${buildTableRows(QTY_METRICS)}</tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="section-title">📊 Metrics per Hari — Persentase</div>
+  <div class="table-card">
+    <div class="table-header"><span>Putaway % Detail</span><span style="font-size:10px;color:#94a3b8">scroll → lihat semua</span></div>
+    <div class="overview-table-wrap">
+      <table class="overview-table">
+        <thead><tr><th style="min-width:200px">Metric</th>${dateHeaders}</tr></thead>
+        <tbody>${buildTableRows(PCT_METRICS)}</tbody>
+      </table>
+    </div>
+  </div>`;
+
+  setTimeout(() => {
+    // Daily FC vs Actual chart
+    const ctx1 = document.getElementById('pw_chart_daily');
+    if (ctx1) {
+      chartInstances['pw_daily'] = new Chart(ctx1.getContext('2d'), {
+        data: {
+          labels: filteredDates,
+          datasets: [
+            { type:'bar', label:'Forecast', data: filteredDates.map(d => fcMetric?.daily[d]||0), backgroundColor: COLOR_FC_BG, borderColor: COLOR_FC, borderWidth:1, borderRadius:3, yAxisID:'y',
+              datalabels:{ anchor:'end', align:'end', color:COLOR_FC, font:{size:9,weight:'700'}, formatter:fmtShort, display: ctx => ctx.raw > 0 } },
+            { type:'bar', label:'Actual', data: filteredDates.map(d => actMetric?.daily[d]||0), backgroundColor: COLOR_ACT_BG, borderColor: COLOR_ACT, borderWidth:1, borderRadius:3, yAxisID:'y',
+              datalabels:{ anchor:'end', align:'end', color:COLOR_ACT, font:{size:9,weight:'700'}, formatter:fmtShort, display: ctx => ctx.raw > 0 } },
+            { type:'line', label:'FR%', data: filteredDates.map(d => {
+                const m = frMetric?.daily[d];
+                if (!m) return null;
+                return m > 1 ? m : Math.round(m*100);
+              }), borderColor:COLOR_PCT, borderWidth:2, pointRadius:3, pointBackgroundColor:COLOR_PCT, tension:0.3, yAxisID:'y2', fill:false,
+              datalabels:{display:false} }
+          ]
+        },
+        options: {
+          responsive:true, maintainAspectRatio:false, interaction:{mode:'index',intersect:false}, layout:{padding:{top:18}},
+          plugins:{ legend:{labels:{color:'#64748b',font:{size:10},boxWidth:12}},
+            tooltip:{callbacks:{label: c => c.dataset.yAxisID==='y2' ? ` ${c.dataset.label}: ${c.raw}%` : ` ${c.dataset.label}: ${Number(c.raw).toLocaleString('id-ID')}`}} },
+          scales:{
+            x:{ticks:{color:'#94a3b8',font:{size:9},maxRotation:45},grid:{color:'#f1f5f9'}},
+            y:{position:'left',ticks:{color:'#94a3b8',font:{size:9},callback:v=>Number(v).toLocaleString('id-ID')},grid:{color:'#f1f5f9'}},
+            y2:{position:'right',min:0,max:120,ticks:{color:COLOR_PCT,font:{size:9},callback:v=>v+'%'},grid:{drawOnChartArea:false}}
+          }
+        }
+      });
+    }
+
+    // Zone donut
+    const ctx2 = document.getElementById('pw_chart_zone');
+    if (ctx2) {
+      chartInstances['pw_zone'] = new Chart(ctx2.getContext('2d'), {
+        type:'doughnut',
+        data: {
+          labels: zoneMetrics,
+          datasets:[{ data: zoneData, backgroundColor: zoneColors, borderWidth:0 }]
+        },
+        options: {
+          responsive:true, maintainAspectRatio:false, cutout:'55%',
+          plugins:{
+            legend:{position:'right',labels:{color:'#475569',font:{size:10},boxWidth:12}},
+            datalabels:{ color:'#fff', font:{size:10,weight:'700'}, formatter:(v,ctx) => v > 0 ? fmtShort(v) : '' }
+          }
+        }
+      });
+    }
+  }, 50);
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// REPLENISH OVERVIEW
+// ══════════════════════════════════════════════════════════════════════════════
+
 
 function renderOverview() {
   const filtered = (globalRekap||[]).filter(r => inRange(r.tanggal));

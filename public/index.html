@@ -1126,16 +1126,21 @@ function renderSection(sec, idx) {
 }
 
 async function loadData() {
+  globalPutaway = null;
   document.getElementById('content').innerHTML = '<div class="loading">Loading<span class="dot">.</span><span class="dot">.</span><span class="dot">.</span></div>';
   try {
-    const [r1, r2, r3] = await Promise.all([
-      fetch('/api/data').then(r=>r.json()),
-      fetch('/api/rekap').then(r=>r.json()),
-      fetch('/api/summary').then(r=>r.json())
-    ]);
-    globalData = r1; globalRekap = r2; globalSummary = r3;
+    if (currentPage === 'putaway') {
+      await renderPutaway();
+    } else {
+      const [r1, r2, r3] = await Promise.all([
+        fetch('/api/data').then(r=>r.json()),
+        fetch('/api/rekap').then(r=>r.json()),
+        fetch('/api/summary').then(r=>r.json())
+      ]);
+      globalData = r1; globalRekap = r2; globalSummary = r3;
+      setQuick('month', {target: document.querySelectorAll('.qf-btn')[2]});
+    }
     document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString('id-ID');
-    setQuick('month', {target: document.querySelectorAll('.qf-btn')[2]});
   } catch(err) {
     document.getElementById('content').innerHTML = `<div class="loading">Error: ${err.message}</div>`;
   }

@@ -133,15 +133,12 @@
   </div>
 
   <div class="sidebar-section">Inventory</div>
-  <div class="nav-item active" onclick="navigate('overview')" id="nav-overview">
-    <span class="icon">📊</span> Overview
-  </div>
-
-  <div class="nav-parent open" id="parent-replenish" onclick="toggleParent('replenish')">
+ <div class="nav-parent open" id="parent-replenish" onclick="toggleParent('replenish')">
     <div class="nav-parent-left"><span class="icon">🔁</span> Replenish</div>
     <span class="nav-arrow">▶</span>
   </div>
   <div class="nav-submenu open" id="sub-replenish">
+    <div class="nav-sub-item active" onclick="navigate('overview')" id="nav-overview">📊 Overview Replenish</div>
     <div class="nav-sub-item" onclick="navigate('ss-putaway')" id="nav-ss-putaway">📥 SS Putaway</div>
     <div class="nav-sub-item" onclick="navigate('replenish-system')" id="nav-replenish-system">🔄 Replenish System</div>
     <div class="nav-sub-item" onclick="navigate('safety-stock')" id="nav-safety-stock">🛡️ Safety Stock</div>
@@ -203,7 +200,7 @@ let chartInstances = {};
 
 const SECTION_KEYS = ['ss-putaway','replenish-system','safety-stock','param-manual','milkrun'];
 const PAGE_TITLES  = {
-  'overview': 'Overview',
+  'overview': 'Overview Replenish',
   'ss-putaway': 'Safety Stock Putaway',
   'replenish-system': 'Replenish System',
   'safety-stock': 'Safety Stock',

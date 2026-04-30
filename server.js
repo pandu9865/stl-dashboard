@@ -66,60 +66,95 @@ app.get('/api/putaway', async (req, res) => {
     const headerRow = rows[0];
     const dates = headerRow.slice(3).filter(d => d && d.trim() !== '');
 
-    const METRIC_ROWS = {
-      1:  { label: 'FR Accuracy %',                  isPct: true  },
-      2:  { label: 'Forecast Qty',                    isPct: false },
-      3:  { label: 'Actual Qty',                      isPct: false },
-      4:  { label: 'Mezanine',                        isPct: false },
-      5:  { label: 'Spr',                             isPct: false },
-      6:  { label: 'High Risk',                       isPct: false },
-      7:  { label: 'Pallet Floor',                    isPct: false },
-      8:  { label: 'Stg Galon',                       isPct: false },
-      9:  { label: 'Stg Relabel',                     isPct: false },
-      11: { label: 'Mezanine %',                      isPct: true  },
-      12: { label: 'Spr %',                           isPct: true  },
-      13: { label: 'High Risk %',                     isPct: true  },
-      14: { label: 'Pallet Floor %',                  isPct: true  },
-      15: { label: 'Stg Gin %',                       isPct: true  },
-      16: { label: 'Stg Relabel %',                   isPct: true  },
-      18: { label: 'DPF',                             isPct: false },
-      19: { label: 'SPR',                             isPct: false },
-      20: { label: 'DPF %',                           isPct: true  },
-      21: { label: 'SPR %',                           isPct: true  },
-      23: { label: 'Direct to Mezanine (Manual)',     isPct: false },
-      24: { label: 'Direct to Mezanine (System)',     isPct: false },
-      25: { label: 'Direct to Mezanine Manual %',     isPct: true  },
-      26: { label: 'Direct to Mezanine System %',     isPct: true  },
-      28: { label: 'Total MP',                        isPct: false },
-      29: { label: 'SLA Completion %',                isPct: true  },
-      30: { label: 'Actual Prod Qty',                 isPct: false },
-      31: { label: 'Actual Prod %',                   isPct: true  },
+    // Dynamic label mapping: find rows by col C (index 2) label
+    const LABEL_MAP = {
+      'FR Accuracy':                     { label: 'FR Accuracy %',              isPct: true  },
+      'Forcast Qty':                     { label: 'Forecast Qty',               isPct: false },
+      'Actual Qty':                      { label: 'Actual Qty',                 isPct: false },
+      'Mezanine':                        { label: 'Mezanine',                   isPct: false },
+      'Spr':                             { label: 'Spr',                        isPct: false },
+      'High Risk':                       { label: 'High Risk',                  isPct: false },
+      'Pallet Floor':                    { label: 'Pallet Floor',               isPct: false },
+      'Stg Galon':                       { label: 'Stg Galon',                  isPct: false },
+      'Stg Relabel':                     { label: 'Stg Relabel',                isPct: false },
+      'Mezanine %':                      { label: 'Mezanine %',                 isPct: true  },
+      'Spr %':                           { label: 'Spr %',                      isPct: true  },
+      'High Risk %':                     { label: 'High Risk %',                isPct: true  },
+      'Pallet Floor %':                  { label: 'Pallet Floor %',             isPct: true  },
+      'Stg Gin %':                       { label: 'Stg Gin %',                  isPct: true  },
+      'Stg Relabel %':                   { label: 'Stg Relabel %',              isPct: true  },
+      'DPF':                             { label: 'DPF',                        isPct: false },
+      'SPR':                             { label: 'SPR',                        isPct: false },
+      'DPF %':                           { label: 'DPF %',                      isPct: true  },
+      'SPR %':                           { label: 'SPR %',                      isPct: true  },
+      'Direct to Mezanine by manual':    { label: 'Direct to Mezanine (Manual)', isPct: false },
+      'Direct to Mezanine by system':    { label: 'Direct to Mezanine (System)', isPct: false },
+      'Direct to Mezanine by manual %':  { label: 'Direct to Mezanine Manual %', isPct: true  },
+      'Direct to Mezanine by system %':  { label: 'Direct to Mezanine System %', isPct: true  },
+      'Total MP':                        { label: 'Total MP',                   isPct: false },
+      'Sla Completion %':                { label: 'SLA Completion %',           isPct: true  },
+      'Actual prod colective Qty':       { label: 'Actual Prod Qty',            isPct: false },
+      'Actual prod colective (% Qty)':   { label: 'Actual Prod %',             isPct: true  },
     };
 
     const metrics = [];
-    for (const [rowIdx, meta] of Object.entries(METRIC_ROWS)) {
-      const row = rows[parseInt(rowIdx)];
-      if (!row) continue;
+    let fcRowData = null, actRowData = null, mpRowData = null;
+
+    for (let i = 1; i < rows.length; i++) {
+      const row = rows[i];
+      const labelRaw = (row[2] || '').trim();
+      if (!labelRaw) continue;
+
+      const meta = LABEL_MAP[labelRaw];
+      if (!meta) continue;
+
       const daily = {};
-      dates.forEach((d, i) => {
-        const raw = (row[3 + i] || '').replace('%', '').replace(',', '.').trim();
+      dates.forEach((d, j) => {
+        const raw = (row[3 + j] || '').replace('%', '').replace(',', '.').trim();
         const val = parseFloat(raw);
         daily[d] = isNaN(val) ? null : val;
       });
       metrics.push({ label: meta.label, isPct: meta.isPct, daily });
+
+      if (meta.label === 'Forecast Qty') fcRowData = daily;
+      if (meta.label === 'Actual Qty')   actRowData = daily;
+      if (meta.label === 'Total MP')     mpRowData  = daily;
     }
 
-    const fcRow  = rows[2]  || [];
-    const actRow = rows[3]  || [];
-    const mpRow  = rows[28] || [];
-    const totalFC  = fcRow.slice(3).reduce((s, v) => s + (parseFloat(v) || 0), 0);
-    const totalAct = actRow.slice(3).reduce((s, v) => s + (parseFloat(v) || 0), 0);
-    const totalMP  = mpRow.slice(3).reduce((s, v) => s + (parseFloat(v) || 0), 0);
+    const sumDaily = (d) => d ? Object.values(d).reduce((s, v) => s + (v || 0), 0) : 0;
+    const totalFC  = Math.round(sumDaily(fcRowData));
+    const totalAct = Math.round(sumDaily(actRowData));
+    const totalMP  = Math.round(sumDaily(mpRowData));
     const fr = totalFC > 0 ? Math.round(totalAct / totalFC * 100) : 0;
 
     res.json({ dates, metrics, kpi: { totalFC, totalAct, totalMP, fr } });
   } catch (err) {
     console.error('Putaway error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Debug: see raw CSV labels
+app.get('/api/putaway/debug', async (req, res) => {
+  try {
+    const url = `https://docs.google.com/spreadsheets/d/${PUTAWAY_SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(PUTAWAY_SHEET_NAME)}`;
+    const response = await fetch(url);
+    const text = await response.text();
+    const lines = text.replace(/\r/g, '').split('\n');
+    const parseRow = line => {
+      const result = []; let cur = ''; let inQ = false;
+      for (let i = 0; i < line.length; i++) {
+        if (line[i] === '"') { inQ = !inQ; }
+        else if (line[i] === ',' && !inQ) { result.push(cur.trim()); cur = ''; }
+        else { cur += line[i]; }
+      }
+      result.push(cur.trim());
+      return result;
+    };
+    const rows = lines.map(parseRow);
+    const labels = rows.map((r, i) => ({ row: i, colA: r[0], colB: r[1], colC: r[2], colD: r[3] }));
+    res.json(labels);
+  } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });

@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>STL Dashboard</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { font-family: 'Segoe UI', sans-serif; background: #f1f5f9; color: #1e293b; display: flex; height: 100vh; overflow: hidden; }
@@ -55,20 +56,17 @@
 
   .date-range-badge { display: inline-flex; align-items: center; gap: 6px; background: #eff6ff; border: 1px solid #bfdbfe; color: #1d4ed8; font-size: 10px; font-weight: 600; padding: 4px 10px; border-radius: 999px; margin-bottom: 16px; }
 
-  /* COMING SOON */
   .coming-soon { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 60vh; gap: 12px; }
   .coming-soon .cs-icon { font-size: 48px; }
   .coming-soon h2 { font-size: 20px; font-weight: 800; color: #0f172a; }
   .coming-soon p { font-size: 13px; color: #94a3b8; }
 
-  /* KPI */
   .kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 16px; }
   .kpi-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px 16px; }
   .kl { font-size: 9px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
   .kv { font-size: 22px; font-weight: 800; color: #0f172a; line-height: 1; }
   .ks { font-size: 9px; color: #cbd5e1; margin-top: 3px; }
 
-  /* TABLE */
   .table-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden; margin-bottom: 16px; }
   .table-header { padding: 12px 16px; border-bottom: 1px solid #f1f5f9; font-size: 11px; font-weight: 700; color: #475569; display: flex; align-items: center; justify-content: space-between; }
   .table-container { display: flex; overflow: hidden; }
@@ -82,31 +80,21 @@
   .scroll-right td { padding: 7px 12px; font-size: 11px; text-align: center; white-space: nowrap; border-bottom: 1px solid #f8fafc; border-left: 1px solid #f8fafc; color: #64748b; }
   .scroll-right tr:hover td { background: #f8fafc; }
 
-  /* OVERVIEW TABLE */
   .overview-table-wrap { overflow-x: auto; }
-  .overview-table { border-collapse: collapse; width: 100%; min-width: 900px; }
-  .overview-table thead tr th { background: #f8fafc; padding: 9px 12px; font-size: 10px; font-weight: 700; color: #64748b; text-transform: uppercase; white-space: nowrap; border-bottom: 2px solid #e2e8f0; text-align: center; }
-  .overview-table thead tr th:first-child { text-align: left; position: sticky; left: 0; background: #f8fafc; z-index: 5; }
-  .overview-table tbody tr td { padding: 8px 12px; font-size: 11px; border-bottom: 1px solid #f8fafc; text-align: center; white-space: nowrap; }
-  .overview-table tbody tr td:first-child { text-align: left; font-weight: 600; color: #334155; position: sticky; left: 0; background: #fff; z-index: 5; }
-  .overview-table tbody tr:hover td { background: #f8fafc; }
-  .overview-table tbody tr:hover td:first-child { background: #f8fafc; }
+  .overview-table, .summary-table { border-collapse: collapse; width: 100%; min-width: 900px; }
+  .overview-table thead tr th, .summary-table thead tr th { background: #f8fafc; padding: 9px 12px; font-size: 10px; font-weight: 700; color: #64748b; text-transform: uppercase; white-space: nowrap; border-bottom: 2px solid #e2e8f0; text-align: center; }
+  .overview-table thead tr th:first-child, .summary-table thead tr th:first-child { text-align: left; position: sticky; left: 0; background: #f8fafc; z-index: 5; min-width: 180px; }
+  .overview-table tbody tr td, .summary-table tbody tr td { padding: 8px 12px; font-size: 11px; border-bottom: 1px solid #f8fafc; text-align: center; white-space: nowrap; }
+  .overview-table tbody tr td:first-child, .summary-table tbody tr td:first-child { text-align: left; font-weight: 600; color: #334155; position: sticky; left: 0; background: #fff; z-index: 5; }
+  .overview-table tbody tr:hover td, .summary-table tbody tr:hover td { background: #f8fafc; }
+  .overview-table tbody tr:hover td:first-child, .summary-table tbody tr:hover td:first-child { background: #f8fafc; }
   .overview-table tfoot tr td { padding: 9px 12px; font-size: 11px; font-weight: 700; background: #f1f5f9; border-top: 2px solid #e2e8f0; text-align: center; white-space: nowrap; }
   .overview-table tfoot tr td:first-child { text-align: left; position: sticky; left: 0; background: #f1f5f9; z-index: 5; }
-
-  /* SUMMARY TABLE */
-  .summary-table { border-collapse: collapse; width: 100%; min-width: 900px; }
-  .summary-table thead tr th { background: #f8fafc; padding: 9px 12px; font-size: 10px; font-weight: 700; color: #64748b; text-transform: uppercase; white-space: nowrap; border-bottom: 2px solid #e2e8f0; text-align: center; }
-  .summary-table thead tr th:first-child { text-align: left; position: sticky; left: 0; background: #f8fafc; z-index: 5; min-width: 220px; }
-  .summary-table tbody tr td { padding: 8px 12px; font-size: 11px; border-bottom: 1px solid #f8fafc; text-align: center; white-space: nowrap; }
-  .summary-table tbody tr td:first-child { text-align: left; font-weight: 600; color: #334155; position: sticky; left: 0; background: #fff; z-index: 5; }
-  .summary-table tbody tr:hover td { background: #f8fafc; }
-  .summary-table tbody tr:hover td:first-child { background: #f8fafc; }
   .summary-table tbody tr.pct-row td:not(:first-child) { font-weight: 700; }
 
   .val-mp { color: #0f172a !important; font-weight: 700; }
-  .val-fc { color: #3b82f6 !important; }
-  .val-act { color: #10b981 !important; }
+  .val-fc { color: #8b5cf6 !important; }
+  .val-act { color: #f97316 !important; }
   .pct-high { color: #10b981 !important; font-weight: 700; }
   .pct-mid  { color: #f59e0b !important; font-weight: 700; }
   .pct-low  { color: #ef4444 !important; font-weight: 700; }
@@ -116,9 +104,9 @@
 
   .c-green { color: #10b981; } .c-yellow { color: #f59e0b; }
   .c-red { color: #ef4444; } .c-blue { color: #3b82f6; }
+  .c-purple { color: #8b5cf6; } .c-orange { color: #f97316; }
   .bg-green { background: #10b981; } .bg-yellow { background: #f59e0b; } .bg-red { background: #ef4444; }
 
-  /* CHART */
   .chart-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px; margin-bottom: 16px; }
   .chart-card .chart-title { font-size: 11px; font-weight: 700; color: #475569; margin-bottom: 12px; }
   .chart-wrap { position: relative; height: 220px; }
@@ -127,7 +115,7 @@
   .section-page-header h2 { font-size: 18px; font-weight: 800; color: #0f172a; }
   .section-page-header p { font-size: 12px; color: #94a3b8; margin-top: 2px; }
 
-  .section-title { font-size: 13px; font-weight: 700; color: #0f172a; margin-bottom: 10px; padding-bottom: 6px; border-bottom: 2px solid #e2e8f0; }
+  .section-title { font-size: 13px; font-weight: 700; color: #0f172a; margin: 20px 0 10px; padding-bottom: 6px; border-bottom: 2px solid #e2e8f0; }
 
   .empty-state { text-align: center; padding: 40px; color: #94a3b8; font-size: 13px; }
   .loading { text-align: center; padding: 60px; color: #94a3b8; font-size: 14px; }
@@ -144,20 +132,13 @@
     <div class="sub">Sentul Warehouse</div>
   </div>
 
-  <!-- INVENTORY -->
   <div class="sidebar-section">Inventory</div>
   <div class="nav-item active" onclick="navigate('overview')" id="nav-overview">
     <span class="icon">📊</span> Overview
   </div>
 
-  <!-- REPLENISH -->
-  <div class="sidebar-section">Replenish</div>
-  <div class="nav-item" onclick="navigate('overview-replenishment')" id="nav-overview-replenishment">
-    <span class="icon">📈</span> Overview Replenishment
-  </div>
-
   <div class="nav-parent open" id="parent-replenish" onclick="toggleParent('replenish')">
-    <div class="nav-parent-left"><span class="icon">🔁</span> Detail</div>
+    <div class="nav-parent-left"><span class="icon">🔁</span> Replenish</div>
     <span class="nav-arrow">▶</span>
   </div>
   <div class="nav-submenu open" id="sub-replenish">
@@ -168,8 +149,6 @@
     <div class="nav-sub-item" onclick="navigate('milkrun')" id="nav-milkrun">🚚 Milkrun</div>
   </div>
 
-  <!-- INVENTORY LAINNYA -->
-  <div class="sidebar-section">Inventory</div>
   <div class="nav-item" onclick="navigate('putaway')" id="nav-putaway">
     <span class="icon">📤</span> Putaway
   </div>
@@ -180,7 +159,6 @@
     <span class="icon">🗂️</span> Grouper
   </div>
 
-  <!-- INBOUND -->
   <div class="sidebar-section">Inbound</div>
   <div class="nav-item" onclick="navigate('inbound')" id="nav-inbound">
     <span class="icon">🚛</span> Inbound
@@ -215,6 +193,8 @@
 </div>
 
 <script>
+if (window.ChartDataLabels) Chart.register(ChartDataLabels);
+
 let globalData    = null;
 let globalRekap   = null;
 let globalSummary = null;
@@ -224,7 +204,6 @@ let chartInstances = {};
 const SECTION_KEYS = ['ss-putaway','replenish-system','safety-stock','param-manual','milkrun'];
 const PAGE_TITLES  = {
   'overview': 'Overview',
-  'overview-replenishment': 'Overview Replenishment',
   'ss-putaway': 'Safety Stock Putaway',
   'replenish-system': 'Replenish System',
   'safety-stock': 'Safety Stock',
@@ -237,19 +216,20 @@ const PAGE_TITLES  = {
 };
 const COMING_SOON_PAGES = ['putaway','troubleshoot','grouper','inbound'];
 
+const COLOR_FC  = '#8b5cf6';
+const COLOR_FC_BG  = '#8b5cf6cc';
+const COLOR_ACT = '#f97316';
+const COLOR_ACT_BG = '#f97316cc';
+const COLOR_PCT = '#f59e0b';
+
 function pad(n) { return String(n).padStart(2,'0'); }
 function fmtDate(d) { return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; }
-
-function getFromTo() {
-  return { from: document.getElementById('dateFrom').value, to: document.getElementById('dateTo').value };
-}
+function getFromTo() { return { from: document.getElementById('dateFrom').value, to: document.getElementById('dateTo').value }; }
 
 function inRange(dateStr) {
   const { from, to } = getFromTo();
   const parts = dateStr.split('/');
-  let iso;
-  if (parts.length === 3) iso = `${parts[2]}-${parts[1]}-${parts[0]}`;
-  else iso = `2026-${parts[1]}-${parts[0]}`;
+  let iso = parts.length===3 ? `${parts[2]}-${parts[1]}-${parts[0]}` : `2026-${parts[1]}-${parts[0]}`;
   if (from && iso < from) return false;
   if (to   && iso > to)   return false;
   return true;
@@ -275,22 +255,11 @@ function setQuick(q, e) {
   applyFilter();
 }
 
-function applyFilter() {
-  if (!globalData) return;
-  destroyCharts();
-  renderPage(currentPage);
-}
-
-function destroyCharts() {
-  Object.values(chartInstances).forEach(c => c.destroy());
-  chartInstances = {};
-}
-
+function applyFilter() { if (!globalData) return; destroyCharts(); renderPage(currentPage); }
+function destroyCharts() { Object.values(chartInstances).forEach(c => c.destroy()); chartInstances = {}; }
 function toggleParent(key) {
-  const parent = document.getElementById('parent-' + key);
-  const sub    = document.getElementById('sub-' + key);
-  parent.classList.toggle('open');
-  sub.classList.toggle('open');
+  document.getElementById('parent-' + key).classList.toggle('open');
+  document.getElementById('sub-' + key).classList.toggle('open');
 }
 
 function calcKPI(daily) {
@@ -303,31 +272,15 @@ function calcKPI(daily) {
   };
 }
 
-function fmt(n) {
-  if (!n||n===0) return '<span class="zero">-</span>';
-  return Number(n).toLocaleString('id-ID');
-}
-function fmtP(n) {
-  if (!n||n===0) return '-';
-  return Number(n).toLocaleString('id-ID');
-}
-function pctClass(p) {
-  if (!p||p===0) return 'zero';
-  if (p>=95) return 'pct-high';
-  if (p>=80) return 'pct-mid';
-  return 'pct-low';
-}
-function pctClassDec(p) {
-  if (!p||p===0) return 'zero';
-  if (p>=0.95) return 'pct-high';
-  if (p>=0.80) return 'pct-mid';
-  return 'pct-low';
-}
-function fmtVal(label, val) {
-  if (!val || val === 0) return '<span class="zero">-</span>';
-  const isPct = label.includes('%');
-  if (isPct) return `${Math.round(val * 100)}%`;
-  return Number(Math.round(val)).toLocaleString('id-ID');
+function fmt(n) { if (!n||n===0) return '<span class="zero">-</span>'; return Number(n).toLocaleString('id-ID'); }
+function fmtP(n) { if (!n||n===0) return '-'; return Number(n).toLocaleString('id-ID'); }
+function pctClass(p) { if (!p||p===0) return 'zero'; if (p>=95) return 'pct-high'; if (p>=80) return 'pct-mid'; return 'pct-low'; }
+function pctClassDec(p) { if (!p||p===0) return 'zero'; if (p>=0.95) return 'pct-high'; if (p>=0.80) return 'pct-mid'; return 'pct-low'; }
+function fmtShort(n) {
+  if (!n||n===0) return '';
+  if (n >= 1000000) return (n/1000000).toFixed(1)+'M';
+  if (n >= 1000) return (n/1000).toFixed(1)+'k';
+  return Math.round(n);
 }
 
 function dateRangeBadge() {
@@ -341,8 +294,7 @@ function dateRangeBadge() {
 function navigate(page) {
   currentPage = page;
   document.querySelectorAll('.nav-item, .nav-sub-item').forEach(el => el.classList.remove('active'));
-  const navEl = document.getElementById('nav-' + page);
-  if (navEl) navEl.classList.add('active');
+  document.getElementById('nav-' + page)?.classList.add('active');
   if (SECTION_KEYS.includes(page)) {
     document.getElementById('parent-replenish').classList.add('open');
     document.getElementById('sub-replenish').classList.add('open');
@@ -355,7 +307,6 @@ function navigate(page) {
 function renderPage(page) {
   if (COMING_SOON_PAGES.includes(page)) { renderComingSoon(page); return; }
   if (page === 'overview') { renderOverview(); return; }
-  if (page === 'overview-replenishment') { renderOverviewReplenishment(); return; }
   const idx = SECTION_KEYS.indexOf(page);
   if (idx >= 0 && globalData) renderSection(globalData.sections[idx], idx);
 }
@@ -370,7 +321,7 @@ function renderComingSoon(page) {
   </div>`;
 }
 
-// ── OVERVIEW ──────────────────────────────────────────────────────────────────
+// ── OVERVIEW (combined: rekap + summary + achievement + chart) ────────────────
 function renderOverview() {
   const filtered = (globalRekap||[]).filter(r => inRange(r.tanggal));
   const active   = filtered.filter(r => r.totalTask > 0);
@@ -381,10 +332,10 @@ function renderOverview() {
   const avgProd = active.length ? Math.round(active.reduce((s,r)=>s+r.prodDay,0)/active.length) : 0;
   const frCls   = avgFR>=95?'c-green':avgFR>=80?'c-yellow':'c-red';
 
-  const today    = new Date();
+  const today = new Date();
   const todayStr = `${pad(today.getDate())}/${pad(today.getMonth()+1)}/2026`;
 
-  // Rekap table rows
+  // Rekap rows
   const rows = filtered.map(r => {
     const isToday = r.tanggal === todayStr;
     const off = r.totalTask===0 ? ' col-off' : '';
@@ -412,7 +363,7 @@ function renderOverview() {
   const totMilk  = active.reduce((s,r)=>s+r.qtyMilkrun,0);
   const totPIC   = active.reduce((s,r)=>s+r.pic,0);
 
-  // Summary table
+  // Summary table (rows 43-57)
   const summaryDates = (globalSummary?.dates||[]).filter(d => inRange(d));
   const summaryRows = (globalSummary?.metrics||[])
     .filter(m => m.label !== 'Description')
@@ -421,27 +372,53 @@ function renderOverview() {
       const cells = summaryDates.map(d => {
         const val = m.daily[d] || 0;
         if (!val) return '<td><span class="zero">-</span></td>';
-        if (isPct) {
-          const pct = Math.round(val * 100);
-          return `<td class="${pctClassDec(val)}">${pct}%</td>`;
-        }
+        if (isPct) return `<td class="${pctClassDec(val)}">${Math.round(val*100)}%</td>`;
         return `<td>${Math.round(val).toLocaleString('id-ID')}</td>`;
       }).join('');
       return `<tr class="${isPct?'pct-row':''}"><td>${m.label}</td>${cells}</tr>`;
     }).join('');
-
   const summaryHeaders = summaryDates.map(d => {
     const parts = d.split('/');
     return `<th>${parts[0]}/${parts[1]}</th>`;
+  }).join('');
+
+  // Achievement per section cards
+  const sections = globalData?.sections || [];
+  const kpiCards = sections.map((sec, i) => {
+    const f = sec.daily.filter(d => inRange(d.date));
+    const k = calcKPI(f);
+    const pctCls = k.avgPct>=95?'c-green':k.avgPct>=80?'c-yellow':k.avgPct>0?'c-red':'';
+    const barCls = k.avgPct>=95?'bg-green':k.avgPct>=80?'bg-yellow':'bg-red';
+    return `
+    <div class="kpi-card" style="cursor:pointer" onclick="navigate('${SECTION_KEYS[i]}')">
+      <div class="kl">${sec.name}</div>
+      <div class="kv ${pctCls}" style="font-size:26px">${k.avgPct?k.avgPct+'%':'-'}</div>
+      <div style="height:4px;background:#f1f5f9;border-radius:999px;margin:8px 0;overflow:hidden">
+        <div style="height:100%;width:${Math.min(k.avgPct,100)}%;border-radius:999px" class="${barCls}"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:6px">
+        <div><div style="font-size:11px;font-weight:700;color:${COLOR_FC}">${fmtP(k.totalFC)}</div><div class="ks">Forecast</div></div>
+        <div><div style="font-size:11px;font-weight:700;color:${COLOR_ACT}">${fmtP(k.totalAct)}</div><div class="ks">Actual</div></div>
+        <div><div style="font-size:11px;font-weight:700">${k.totalMP}</div><div class="ks">MP</div></div>
+      </div>
+    </div>`;
   }).join('');
 
   document.getElementById('content').innerHTML = `
   ${dateRangeBadge()}
   <div class="kpi-row">
     <div class="kpi-card"><div class="kl">Total Task</div><div class="kv">${fmtP(totTask)}</div><div class="ks">qty task keseluruhan</div></div>
-    <div class="kpi-card"><div class="kl">Total Qty Move</div><div class="kv c-green">${fmtP(totMove)}</div><div class="ks">actual move</div></div>
+    <div class="kpi-card"><div class="kl">Total Qty Move</div><div class="kv c-orange">${fmtP(totMove)}</div><div class="ks">actual move</div></div>
     <div class="kpi-card"><div class="kl">Avg %FR</div><div class="kv ${frCls}">${avgFR?avgFR+'%':'-'}</div><div class="ks">rata-rata fill rate</div></div>
     <div class="kpi-card"><div class="kl">Avg Prod/Day</div><div class="kv c-blue">${avgProd?avgProd.toLocaleString('id-ID'):'-'}</div><div class="ks">produktivitas harian</div></div>
+  </div>
+
+  <div class="section-title">📈 Achievement per Section</div>
+  <div class="kpi-row" style="grid-template-columns:repeat(3,1fr)">${kpiCards}</div>
+
+  <div class="chart-card">
+    <div class="chart-title">Forecast vs Actual — Semua Section</div>
+    <div class="chart-wrap" style="height:320px"><canvas id="chart_overview"></canvas></div>
   </div>
 
   <div class="section-title">📋 Rekap Produksi Per Hari</div>
@@ -463,7 +440,7 @@ function renderOverview() {
           <td>${fmtP(totSSInv)}</td><td>${fmtP(totSSPut)}</td>
           <td>${fmtP(totSys)}</td><td>${fmtP(totMan)}</td><td>${fmtP(totMilk)}</td>
           <td style="color:#0f172a">${fmtP(totTask)}</td>
-          <td style="color:#10b981">${fmtP(totMove)}</td>
+          <td style="color:${COLOR_ACT}">${fmtP(totMove)}</td>
           <td>${fmtP(totPIC)}</td>
           <td class="${frCls}">${avgFR?avgFR+'%':'-'}</td>
           <td style="color:#3b82f6">${avgProd?avgProd.toLocaleString('id-ID'):'-'}</td>
@@ -485,86 +462,44 @@ function renderOverview() {
       </table>
     </div>
   </div>`;
-}
 
-// ── OVERVIEW REPLENISHMENT ─────────────────────────────────────────────────────
-function renderOverviewReplenishment() {
-  if (!globalData) return;
-
-  const sections = globalData.sections;
-  const kpiCards = sections.map(sec => {
-    const filtered = sec.daily.filter(d => inRange(d.date));
-    const k = calcKPI(filtered);
-    const pctCls = k.avgPct>=95?'c-green':k.avgPct>=80?'c-yellow':k.avgPct>0?'c-red':'';
-    const barCls = k.avgPct>=95?'bg-green':k.avgPct>=80?'bg-yellow':'bg-red';
-    return `
-    <div class="kpi-card" style="cursor:pointer" onclick="navigate('${SECTION_KEYS[sections.indexOf(sec)]}')">
-      <div class="kl">${sec.name}</div>
-      <div class="kv ${pctCls}" style="font-size:28px">${k.avgPct?k.avgPct+'%':'-'}</div>
-      <div style="height:4px;background:#f1f5f9;border-radius:999px;margin:8px 0;overflow:hidden">
-        <div style="height:100%;width:${Math.min(k.avgPct,100)}%;border-radius:999px" class="${barCls}"></div>
-      </div>
-      <div style="display:flex;justify-content:space-between;margin-top:6px">
-        <div><div style="font-size:11px;font-weight:700;color:#3b82f6">${fmtP(k.totalFC)}</div><div class="ks">Forecast</div></div>
-        <div><div style="font-size:11px;font-weight:700;color:#10b981">${fmtP(k.totalAct)}</div><div class="ks">Actual</div></div>
-        <div><div style="font-size:11px;font-weight:700">${k.totalMP}</div><div class="ks">MP</div></div>
-      </div>
-    </div>`;
-  }).join('');
-
-  document.getElementById('content').innerHTML = `
-  ${dateRangeBadge()}
-  <div class="section-title">📈 Achievement per Section</div>
-  <div class="kpi-row" style="grid-template-columns:repeat(3,1fr)">${kpiCards}</div>
-  <div class="chart-card">
-    <div class="chart-title">Forecast vs Actual — Semua Section</div>
-    <div class="chart-wrap" style="height:280px"><canvas id="chart_overview_replen"></canvas></div>
-  </div>`;
-
+  // Render overview chart
   setTimeout(() => {
-    const ctx = document.getElementById('chart_overview_replen');
-    if (!ctx) return;
-    const labels = sections.map(s => s.name);
-    const fcData  = sections.map(s => {
-      const f = s.daily.filter(d => inRange(d.date));
-      return f.reduce((sum,d)=>sum+d.forecast,0);
-    });
-    const actData = sections.map(s => {
-      const f = s.daily.filter(d => inRange(d.date));
-      return f.reduce((sum,d)=>sum+d.actual,0);
-    });
+    const ctx = document.getElementById('chart_overview');
+    if (!ctx || !sections.length) return;
+
+    const labels  = sections.map(s => s.name);
+    const fcData  = sections.map(s => s.daily.filter(d=>inRange(d.date)).reduce((sum,d)=>sum+d.forecast,0));
+    const actData = sections.map(s => s.daily.filter(d=>inRange(d.date)).reduce((sum,d)=>sum+d.actual,0));
     const pctData = sections.map(s => {
-      const f = s.daily.filter(d => (inRange(d.date) && (d.forecast>0||d.actual>0)));
+      const f = s.daily.filter(d => inRange(d.date) && (d.forecast>0||d.actual>0));
       return f.length ? Math.round(f.reduce((sum,d)=>sum+d.pct,0)/f.length) : 0;
     });
 
-    chartInstances['chart_overview_replen'] = new Chart(ctx.getContext('2d'), {
+    chartInstances['chart_overview'] = new Chart(ctx.getContext('2d'), {
       data: {
         labels,
         datasets: [
-          { type:'bar', label:'Forecast', data:fcData, backgroundColor:'#3b82f6aa', borderColor:'#2563eb', borderWidth:2, borderRadius:6, yAxisID:'y' },
-          { type:'bar', label:'Actual', data:actData, backgroundColor:'#10b981aa', borderColor:'#059669', borderWidth:2, borderRadius:6, yAxisID:'y' },
-          { type:'line', label:'Avg Achievement %', data:pctData, borderColor:'#f59e0b', backgroundColor:'#fef3c7', borderWidth:3, pointRadius:6, pointBackgroundColor:'#f59e0b', tension:0.3, yAxisID:'y2', fill:false }
+          { type:'bar', label:'Forecast', data:fcData, backgroundColor:COLOR_FC_BG, borderColor:COLOR_FC, borderWidth:2, borderRadius:6, yAxisID:'y',
+            datalabels:{ anchor:'end', align:'end', color:COLOR_FC, font:{ size:10, weight:'700' }, formatter:fmtShort } },
+          { type:'bar', label:'Actual', data:actData, backgroundColor:COLOR_ACT_BG, borderColor:COLOR_ACT, borderWidth:2, borderRadius:6, yAxisID:'y',
+            datalabels:{ anchor:'end', align:'end', color:COLOR_ACT, font:{ size:10, weight:'700' }, formatter:fmtShort } },
+          { type:'line', label:'Avg Achievement %', data:pctData, borderColor:COLOR_PCT, backgroundColor:'#fef3c7', borderWidth:3, pointRadius:6, pointBackgroundColor:COLOR_PCT, tension:0.3, yAxisID:'y2', fill:false,
+            datalabels:{ align:'top', color:COLOR_PCT, font:{ size:10, weight:'700' }, formatter:v => v+'%' } }
         ]
       },
       options: {
         responsive:true, maintainAspectRatio:false,
         interaction:{ mode:'index', intersect:false },
+        layout:{ padding:{ top:24 } },
         plugins:{
           legend:{ labels:{ color:'#475569', font:{ size:11 }, boxWidth:14 } },
-          tooltip:{
-            callbacks:{
-              label: ctx => {
-                if (ctx.dataset.yAxisID === 'y2') return ` ${ctx.dataset.label}: ${ctx.raw}%`;
-                return ` ${ctx.dataset.label}: ${Number(ctx.raw).toLocaleString('id-ID')}`;
-              }
-            }
-          }
+          tooltip:{ callbacks:{ label: c => c.dataset.yAxisID==='y2' ? ` ${c.dataset.label}: ${c.raw}%` : ` ${c.dataset.label}: ${Number(c.raw).toLocaleString('id-ID')}` } }
         },
         scales:{
           x:{ ticks:{ color:'#64748b', font:{ size:11 } }, grid:{ color:'#f1f5f9' } },
           y:{ position:'left', ticks:{ color:'#64748b', font:{ size:10 }, callback:v=>Number(v).toLocaleString('id-ID') }, grid:{ color:'#f1f5f9' } },
-          y2:{ position:'right', min:0, max:120, ticks:{ color:'#f59e0b', font:{ size:10 }, callback:v=>v+'%' }, grid:{ drawOnChartArea:false } }
+          y2:{ position:'right', min:0, max:130, ticks:{ color:COLOR_PCT, font:{ size:10 }, callback:v=>v+'%' }, grid:{ drawOnChartArea:false } }
         }
       }
     });
@@ -582,7 +517,7 @@ function renderSection(sec, idx) {
     return;
   }
 
-  const today    = new Date();
+  const today = new Date();
   const todayStr = `${pad(today.getDate())}/${pad(today.getMonth()+1)}`;
 
   const dateHeaders = filtered.map(d => {
@@ -608,13 +543,13 @@ function renderSection(sec, idx) {
   </div>
   <div class="kpi-row">
     <div class="kpi-card"><div class="kl">Total MP</div><div class="kv">${k.totalMP}</div><div class="ks">man power days</div></div>
-    <div class="kpi-card"><div class="kl">Total Forecast</div><div class="kv c-blue">${fmtP(k.totalFC)}</div><div class="ks">target qty</div></div>
-    <div class="kpi-card"><div class="kl">Total Actual</div><div class="kv c-green">${fmtP(k.totalAct)}</div><div class="ks">achieved qty</div></div>
+    <div class="kpi-card"><div class="kl">Total Forecast</div><div class="kv c-purple">${fmtP(k.totalFC)}</div><div class="ks">target qty</div></div>
+    <div class="kpi-card"><div class="kl">Total Actual</div><div class="kv c-orange">${fmtP(k.totalAct)}</div><div class="ks">achieved qty</div></div>
     <div class="kpi-card"><div class="kl">Avg Achievement</div><div class="kv ${pctCls}">${k.avgPct?k.avgPct+'%':'-'}</div><div class="ks">active days only</div></div>
   </div>
   <div class="chart-card">
     <div class="chart-title">Forecast vs Actual · Achievement %</div>
-    <div class="chart-wrap"><canvas id="chart_${idx}"></canvas></div>
+    <div class="chart-wrap" style="height:260px"><canvas id="chart_${idx}"></canvas></div>
   </div>
   <div class="table-card">
     <div class="table-header">
@@ -654,36 +589,32 @@ function renderSection(sec, idx) {
       data: {
         labels: filtered.map(d => d.date),
         datasets: [
-          { type:'bar', label:'Forecast', data:filtered.map(d=>d.forecast), backgroundColor:'#3b82f6aa', borderColor:'#2563eb', borderWidth:1, borderRadius:3, yAxisID:'y' },
-          { type:'bar', label:'Actual', data:filtered.map(d=>d.actual), backgroundColor:'#10b981aa', borderColor:'#059669', borderWidth:1, borderRadius:3, yAxisID:'y' },
-          { type:'line', label:'Achievement %', data:filtered.map(d=>d.pct||null), borderColor:'#f59e0b', backgroundColor:'#fef3c722', borderWidth:2, pointRadius:3, pointBackgroundColor:'#f59e0b', tension:0.3, yAxisID:'y2', fill:false }
+          { type:'bar', label:'Forecast', data:filtered.map(d=>d.forecast), backgroundColor:COLOR_FC_BG, borderColor:COLOR_FC, borderWidth:1, borderRadius:3, yAxisID:'y',
+            datalabels:{ anchor:'end', align:'end', color:COLOR_FC, font:{ size:9, weight:'700' }, formatter:fmtShort, display: ctx => ctx.raw > 0 } },
+          { type:'bar', label:'Actual', data:filtered.map(d=>d.actual), backgroundColor:COLOR_ACT_BG, borderColor:COLOR_ACT, borderWidth:1, borderRadius:3, yAxisID:'y',
+            datalabels:{ anchor:'end', align:'end', color:COLOR_ACT, font:{ size:9, weight:'700' }, formatter:fmtShort, display: ctx => ctx.raw > 0 } },
+          { type:'line', label:'Achievement %', data:filtered.map(d=>d.pct||null), borderColor:COLOR_PCT, backgroundColor:'#fef3c722', borderWidth:2, pointRadius:3, pointBackgroundColor:COLOR_PCT, tension:0.3, yAxisID:'y2', fill:false,
+            datalabels:{ display:false } }
         ]
       },
       options: {
         responsive:true, maintainAspectRatio:false,
         interaction:{ mode:'index', intersect:false },
+        layout:{ padding:{ top:18 } },
         plugins:{
           legend:{ labels:{ color:'#64748b', font:{ size:10 }, boxWidth:12 } },
-          tooltip:{
-            callbacks:{
-              label: ctx => {
-                if (ctx.dataset.yAxisID === 'y2') return ` ${ctx.dataset.label}: ${ctx.raw}%`;
-                return ` ${ctx.dataset.label}: ${Number(ctx.raw).toLocaleString('id-ID')}`;
-              }
-            }
-          }
+          tooltip:{ callbacks:{ label: c => c.dataset.yAxisID==='y2' ? ` ${c.dataset.label}: ${c.raw}%` : ` ${c.dataset.label}: ${Number(c.raw).toLocaleString('id-ID')}` } }
         },
         scales:{
           x:{ ticks:{ color:'#94a3b8', font:{ size:9 }, maxRotation:45 }, grid:{ color:'#f1f5f9' } },
           y:{ position:'left', ticks:{ color:'#94a3b8', font:{ size:9 }, callback:v=>Number(v).toLocaleString('id-ID') }, grid:{ color:'#f1f5f9' } },
-          y2:{ position:'right', min:0, max:120, ticks:{ color:'#f59e0b', font:{ size:9 }, callback:v=>v+'%' }, grid:{ drawOnChartArea:false } }
+          y2:{ position:'right', min:0, max:120, ticks:{ color:COLOR_PCT, font:{ size:9 }, callback:v=>v+'%' }, grid:{ drawOnChartArea:false } }
         }
       }
     });
   }, 50);
 }
 
-// ── LOAD DATA ─────────────────────────────────────────────────────────────────
 async function loadData() {
   document.getElementById('content').innerHTML = '<div class="loading">Loading<span class="dot">.</span><span class="dot">.</span><span class="dot">.</span></div>';
   try {
@@ -692,9 +623,7 @@ async function loadData() {
       fetch('/api/rekap').then(r=>r.json()),
       fetch('/api/summary').then(r=>r.json())
     ]);
-    globalData    = r1;
-    globalRekap   = r2;
-    globalSummary = r3;
+    globalData = r1; globalRekap = r2; globalSummary = r3;
     document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString('id-ID');
     setQuick('month', {target: document.querySelectorAll('.qf-btn')[2]});
   } catch(err) {

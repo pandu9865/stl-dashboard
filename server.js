@@ -152,8 +152,13 @@ app.get('/api/putaway/debug', async (req, res) => {
       return result;
     };
     const rows = lines.map(parseRow);
-    const labels = rows.map((r, i) => ({ row: i, colA: r[0], colB: r[1], colC: r[2], colD: r[3] }));
-    res.json(labels);
+    // Show row 0 (header) and rows 36-40 in full
+    const out = {};
+    out.header = rows[0];
+    out.row36  = rows[36];
+    out.row37  = rows[37];
+    out.totalCols = rows[36] ? rows[36].length : 0;
+    res.json(out);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

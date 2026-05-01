@@ -183,7 +183,15 @@
   </div>
 
   <div class="nav-item" onclick="navigate('putaway')" id="nav-putaway"><span class="icon">📤</span> Putaway</div>
-  <div class="nav-item" onclick="navigate('troubleshoot')" id="nav-troubleshoot"><span class="icon">🔧</span> Troubleshoot</div>
+  <div class="nav-parent" id="parent-troubleshoot" onclick="toggleParent('troubleshoot')">
+    <div class="nav-parent-left"><span class="icon">🔧</span> Troubleshoot</div>
+    <span class="nav-arrow">▶</span>
+  </div>
+  <div class="nav-submenu" id="sub-troubleshoot">
+    <div class="nav-sub-item" onclick="navigate('ts-overview')" id="nav-ts-overview">📊 Overview</div>
+    <div class="nav-sub-item" onclick="navigate('ts-reguler')" id="nav-ts-reguler">🔧 Task Reguler</div>
+    <div class="nav-sub-item" onclick="navigate('ts-bti')" id="nav-ts-bti">📦 BTI</div>
+  </div>
   <div class="nav-item" onclick="navigate('grouper')" id="nav-grouper"><span class="icon">🗂️</span> Grouper</div>
 
   <div class="sidebar-section">Inbound</div>
@@ -243,11 +251,14 @@ let globalPutaway  = null;
 let globalTroubleshoot = null;
 
 const SECTION_KEYS = ['ss-putaway','replenish-system','safety-stock','param-manual','milkrun'];
+const TS_KEYS      = ['ts-overview','ts-reguler','ts-bti'];
 const PAGE_TITLES  = {
   'overview':'Overview Replenish','ss-putaway':'Safety Stock Putaway',
   'replenish-system':'Replenish System','safety-stock':'Safety Stock',
   'param-manual':'Parameter Manual','milkrun':'Milkrun',
-  'putaway':'Putaway','troubleshoot':'Troubleshoot','grouper':'Grouper','inbound':'Inbound'
+  'putaway':'Putaway',
+  'ts-overview':'Overview Troubleshoot','ts-reguler':'Task Troubleshoot Reguler','ts-bti':'BTI',
+  'grouper':'Grouper','inbound':'Inbound'
 };
 const COMING_SOON_PAGES = ['grouper'];
 
@@ -334,6 +345,10 @@ function navigate(page) {
     document.getElementById('parent-replenish').classList.add('open');
     document.getElementById('sub-replenish').classList.add('open');
   }
+  if (TS_KEYS.includes(page)) {
+    document.getElementById('parent-troubleshoot').classList.add('open');
+    document.getElementById('sub-troubleshoot').classList.add('open');
+  }
   document.getElementById('page-title').textContent = PAGE_TITLES[page] || page;
 
   // toggle topbar
@@ -348,10 +363,12 @@ function navigate(page) {
 
 function renderPage(page) {
   if (COMING_SOON_PAGES.includes(page)) { renderComingSoon(page); return; }
-  if (page === 'overview')  { renderOverview(); return; }
-  if (page === 'inbound')   { renderInbound(); return; }
-  if (page === 'putaway')       { renderPutaway(); return; }
-  if (page === 'troubleshoot')  { renderTroubleshoot(); return; }
+  if (page === 'overview')    { renderOverview(); return; }
+  if (page === 'inbound')     { renderInbound(); return; }
+  if (page === 'putaway')     { renderPutaway(); return; }
+  if (page === 'ts-overview') { renderTsOverview(); return; }
+  if (page === 'ts-reguler')  { renderTsSection('reguler'); return; }
+  if (page === 'ts-bti')      { renderTsSection('bti'); return; }
   const idx = SECTION_KEYS.indexOf(page);
   if (idx >= 0 && globalData) renderSection(globalData.sections[idx], idx);
 }
@@ -711,23 +728,30 @@ function resetIbFilters() {
 // TROUBLESHOOT
 // ══════════════════════════════════════════════════════════════════════════════
 
-async function renderTroubleshoot() {
-  if (!globalTroubleshoot) {
-    document.getElementById('content').innerHTML = '<div class="loading">Loading troubleshoot<span class="dot">.</span><span class="dot">.</span><span class="dot">.</span></div>';
-    try {
-      globalTroubleshoot = await fetch('/api/troubleshoot').then(r => r.json());
-    } catch(e) {
-      document.getElementById('content').innerHTML = `<div class="loading">Error: ${e.message}</div>`;
-      return;
-    }
+const TS_SECTIONS = {
+  reguler: {
+    name: 'Task Troubleshoot Reguler',
+    metrics: ['Task Troubleshoot Reguler','Actual Fullfill','Troubleshoot FR %','Pick to Lost','Pick to Lost %','Actual MP (Troubleshoot)'],
+    fcLabel: 'Task Troubleshoot Reguler',
+    actLabel: 'Actual Fullfill',
+    pctLabel: 'Troubleshoot FR %',
+    color: '#378ADD'
+  },
+  bti: {
+    name: 'BTI',
+    metrics: ['Daily In Items BTI','Daily Out Items BTI','LDP to Available','Adjustin','Fullfill Stock','Fullfill Order','Total Task','Actual MP (BTI)','Qty/MP'],
+    fcLabel: 'Total Task',
+    actLabel: 'Daily Out Items BTI',
+    pctLabel: null,
+    lineLabel: 'Qty/MP',
+    color: '#1D9E75'
   }
+};
 
-  const { dates, metrics, kpi } = globalTroubleshoot;
-  const frCls = kpi.fr >= 95 ? 'c-green' : kpi.fr >= 80 ? 'c-yellow' : 'c-red';
-
-  const { from, to } = getFromTo();
+function tsParseDates(dates) {
   const months = {Jan:'01',Feb:'02',Mar:'03',Apr:'04',May:'05',Jun:'06',Jul:'07',Aug:'08',Sep:'09',Oct:'10',Nov:'11',Dec:'12'};
-  const filteredDates = dates.filter(d => {
+  const { from, to } = getFromTo();
+  return dates.filter(d => {
     const parts = d.trim().split(' ');
     const day = parts[0].padStart(2,'0');
     const mon = months[parts[1]] || '05';
@@ -736,102 +760,228 @@ async function renderTroubleshoot() {
     if (to   && iso > to)   return false;
     return true;
   });
+}
 
-  const QTY_METRICS = metrics.filter(m => !m.isPct);
-  const PCT_METRICS = metrics.filter(m => m.isPct);
-  const fcMetric  = metrics.find(m => m.label === 'Task Troubleshoot Reguler');
-  const actMetric = metrics.find(m => m.label === 'Actual Fullfill');
-  const frMetric  = metrics.find(m => m.label === 'Troubleshoot FR %');
+async function ensureTsData() {
+  if (!globalTroubleshoot) {
+    document.getElementById('content').innerHTML = '<div class="loading">Loading troubleshoot<span class="dot">.</span><span class="dot">.</span><span class="dot">.</span></div>';
+    try {
+      globalTroubleshoot = await fetch('/api/troubleshoot').then(r => r.json());
+    } catch(e) {
+      document.getElementById('content').innerHTML = `<div class="loading">Error: ${e.message}</div>`;
+      return false;
+    }
+  }
+  return true;
+}
 
-  const buildTableRows = (metricList) => metricList.map(m => {
+function renderTsOverview() {
+  ensureTsData().then(ok => {
+    if (!ok) return;
+    const { dates, metrics } = globalTroubleshoot;
+    const filteredDates = tsParseDates(dates);
+
+    const getMetric = label => metrics.find(m => m.label === label);
+    const sumD = (label) => {
+      const m = getMetric(label);
+      return m ? filteredDates.reduce((s,d) => s+(m.daily[d]||0), 0) : 0;
+    };
+
+    // Reguler KPI
+    const rTask = Math.round(sumD('Task Troubleshoot Reguler'));
+    const rAct  = Math.round(sumD('Actual Fullfill'));
+    const rFR   = rTask > 0 ? Math.round(rAct/rTask*100) : 0;
+    const rFRCls = rFR>=95?'c-green':rFR>=80?'c-yellow':rFR>0?'c-red':'';
+
+    // BTI KPI
+    const btiIn  = Math.round(sumD('Daily In Items BTI'));
+    const btiOut = Math.round(sumD('Daily Out Items BTI'));
+    const btiTotal = Math.round(sumD('Total Task'));
+
+    const cards = `
+    <div class="kpi-card" style="cursor:pointer" onclick="navigate('ts-reguler')">
+      <div class="kl">Task Reguler</div>
+      <div class="kv ${rFRCls}" style="font-size:26px">${rFR?rFR+'%':'-'}</div>
+      <div style="height:4px;background:#f1f5f9;border-radius:999px;margin:8px 0;overflow:hidden">
+        <div style="height:100%;width:${Math.min(rFR,100)}%;border-radius:999px;background:${rFR>=95?'#10b981':rFR>=80?'#f59e0b':'#ef4444'}"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:6px">
+        <div><div style="font-size:11px;font-weight:700;color:${COLOR_FC}">${rTask.toLocaleString('id-ID')}</div><div class="ks">Task</div></div>
+        <div><div style="font-size:11px;font-weight:700;color:${COLOR_ACT}">${rAct.toLocaleString('id-ID')}</div><div class="ks">Actual</div></div>
+      </div>
+    </div>
+    <div class="kpi-card" style="cursor:pointer" onclick="navigate('ts-bti')">
+      <div class="kl">BTI</div>
+      <div class="kv" style="font-size:26px">${btiTotal.toLocaleString('id-ID')}</div>
+      <div style="height:4px;background:#f1f5f9;border-radius:999px;margin:8px 0;overflow:hidden">
+        <div style="height:100%;width:60%;border-radius:999px;background:#1D9E75"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:6px">
+        <div><div style="font-size:11px;font-weight:700;color:#1D9E75">${btiIn.toLocaleString('id-ID')}</div><div class="ks">In Items</div></div>
+        <div><div style="font-size:11px;font-weight:700;color:${COLOR_ACT}">${btiOut.toLocaleString('id-ID')}</div><div class="ks">Out Items</div></div>
+      </div>
+    </div>`;
+
+    document.getElementById('content').innerHTML = `
+    ${dateRangeBadge()}
+    <div class="section-title">📈 Achievement per Section</div>
+    <div class="kpi-row" style="grid-template-columns:repeat(2,1fr)">${cards}</div>
+    <div class="chart-grid-2">
+      <div class="chart-card">
+        <div class="chart-title">Task Reguler — Task vs Actual per hari</div>
+        <div class="chart-wrap" style="height:240px"><canvas id="ts_ov_reguler"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">BTI — In vs Out Items per hari</div>
+        <div class="chart-wrap" style="height:240px"><canvas id="ts_ov_bti"></canvas></div>
+      </div>
+    </div>`;
+
+    setTimeout(() => {
+      const mTask = getMetric('Task Troubleshoot Reguler');
+      const mAct  = getMetric('Actual Fullfill');
+      const mFR   = getMetric('Troubleshoot FR %');
+      const mIn   = getMetric('Daily In Items BTI');
+      const mOut  = getMetric('Daily Out Items BTI');
+
+      new Chart(document.getElementById('ts_ov_reguler').getContext('2d'), {
+        data: { labels: filteredDates, datasets: [
+          { type:'bar', label:'Task', data: filteredDates.map(d=>mTask?.daily[d]||0), backgroundColor:COLOR_FC_BG, borderColor:COLOR_FC, borderWidth:1, borderRadius:3, yAxisID:'y',
+            datalabels:{anchor:'end',align:'end',color:COLOR_FC,font:{size:9,weight:'700'},formatter:fmtShort,display:ctx=>ctx.raw>0} },
+          { type:'bar', label:'Actual Fullfill', data: filteredDates.map(d=>mAct?.daily[d]||0), backgroundColor:COLOR_ACT_BG, borderColor:COLOR_ACT, borderWidth:1, borderRadius:3, yAxisID:'y',
+            datalabels:{anchor:'end',align:'end',color:COLOR_ACT,font:{size:9,weight:'700'},formatter:fmtShort,display:ctx=>ctx.raw>0} },
+          { type:'line', label:'FR%', data: filteredDates.map(d=>mFR?.daily[d]??null), borderColor:COLOR_PCT, borderWidth:2, pointRadius:3, pointBackgroundColor:COLOR_PCT, tension:0.3, yAxisID:'y2', fill:false, datalabels:{display:false} }
+        ]},
+        options: tsChartOpts()
+      });
+
+      new Chart(document.getElementById('ts_ov_bti').getContext('2d'), {
+        data: { labels: filteredDates, datasets: [
+          { type:'bar', label:'In Items', data: filteredDates.map(d=>mIn?.daily[d]||0), backgroundColor:'#1D9E7566', borderColor:'#1D9E75', borderWidth:1, borderRadius:3, yAxisID:'y',
+            datalabels:{anchor:'end',align:'end',color:'#1D9E75',font:{size:9,weight:'700'},formatter:fmtShort,display:ctx=>ctx.raw>0} },
+          { type:'bar', label:'Out Items', data: filteredDates.map(d=>mOut?.daily[d]||0), backgroundColor:COLOR_ACT_BG, borderColor:COLOR_ACT, borderWidth:1, borderRadius:3, yAxisID:'y',
+            datalabels:{anchor:'end',align:'end',color:COLOR_ACT,font:{size:9,weight:'700'},formatter:fmtShort,display:ctx=>ctx.raw>0} },
+        ]},
+        options: tsChartOpts(false)
+      });
+    }, 50);
+  });
+}
+
+function tsChartOpts(hasPct=true) {
+  return {
+    responsive:true, maintainAspectRatio:false, interaction:{mode:'index',intersect:false}, layout:{padding:{top:18}},
+    plugins:{ legend:{labels:{color:'#64748b',font:{size:10},boxWidth:12}},
+      tooltip:{callbacks:{label:c=>c.dataset.yAxisID==='y2'?` ${c.dataset.label}: ${c.raw}%`:` ${c.dataset.label}: ${Number(c.raw).toLocaleString('id-ID')}`}} },
+    scales:{
+      x:{ticks:{color:'#94a3b8',font:{size:9},maxRotation:45},grid:{color:'#f1f5f9'}},
+      y:{position:'left',ticks:{color:'#94a3b8',font:{size:9},callback:v=>Number(v).toLocaleString('id-ID')},grid:{color:'#f1f5f9'}},
+      ...(hasPct ? {y2:{position:'right',min:0,max:120,ticks:{color:COLOR_PCT,font:{size:9},callback:v=>v+'%'},grid:{drawOnChartArea:false}}} : {})
+    }
+  };
+}
+
+async function renderTsSection(sectionKey) {
+  const ok = await ensureTsData();
+  if (!ok) return;
+
+  const { dates, metrics } = globalTroubleshoot;
+  const sec = TS_SECTIONS[sectionKey];
+  const filteredDates = tsParseDates(dates);
+
+  const getMetric = label => metrics.find(m => m.label === label);
+  const secMetrics = sec.metrics.map(label => getMetric(label)).filter(Boolean);
+
+  const fcMetric  = getMetric(sec.fcLabel);
+  const actMetric = getMetric(sec.actLabel);
+  const pctMetric = sec.pctLabel ? getMetric(sec.pctLabel) : null;
+  const lineMetric= sec.lineLabel ? getMetric(sec.lineLabel) : pctMetric;
+
+  const sumD = m => m ? filteredDates.reduce((s,d)=>s+(m.daily[d]||0),0) : 0;
+  const totalFC  = Math.round(sumD(fcMetric));
+  const totalAct = Math.round(sumD(actMetric));
+  const avgLine  = lineMetric ? (() => {
+    const vals = filteredDates.map(d=>lineMetric.daily[d]).filter(v=>v!=null&&v>0);
+    return vals.length ? Math.round(vals.reduce((s,v)=>s+v,0)/vals.length*10)/10 : 0;
+  })() : 0;
+  const fr = totalFC > 0 ? Math.round(totalAct/totalFC*100) : 0;
+  const frCls = fr>=95?'c-green':fr>=80?'c-yellow':fr>0?'c-red':'';
+
+  // Table rows — all metrics
+  const dateHeaders = filteredDates.map(d=>`<th>${d}</th>`).join('');
+  const tableRows = secMetrics.map(m => {
     const cells = filteredDates.map(d => {
       const v = m.daily[d];
-      if (v === null || v === undefined) return '<td><span class="zero">-</span></td>';
+      if (v===null||v===undefined) return '<td><span class="zero">-</span></td>';
       if (m.isPct) {
-        const cls = v >= 95 ? 'pct-high' : v >= 80 ? 'pct-mid' : v > 0 ? 'pct-low' : 'zero';
-        return `<td class="${cls}">${v.toFixed(1)}%</td>`;
+        const cls = v>=95?'pct-high':v>=80?'pct-mid':v>0?'pct-low':'zero';
+        return `<td class="${cls}">${typeof v==='number'?v.toFixed(1)+'%':v}</td>`;
       }
-      return `<td>${v > 0 ? Number(v).toLocaleString('id-ID') : '<span class="zero">-</span>'}</td>`;
+      return `<td>${v>0?Number(v).toLocaleString('id-ID'):'<span class="zero">-</span>'}</td>`;
     }).join('');
     return `<tr><td>${m.label}</td>${cells}</tr>`;
   }).join('');
 
-  const dateHeaders = filteredDates.map(d => `<th>${d}</th>`).join('');
-
-  // KPI filtered
-  const sumD = (metric) => metric ? filteredDates.reduce((s,d) => s+(metric.daily[d]||0), 0) : 0;
-  const fTask = Math.round(sumD(fcMetric));
-  const fAct  = Math.round(sumD(actMetric));
-  const fFR   = fTask > 0 ? Math.round(fAct/fTask*100) : 0;
-  const fFRCls = fFR >= 95 ? 'c-green' : fFR >= 80 ? 'c-yellow' : 'c-red';
-
   document.getElementById('content').innerHTML = `
   ${dateRangeBadge()}
+  <div class="section-page-header"><h2>${sec.name}</h2></div>
   <div class="kpi-row">
-    <div class="kpi-card"><div class="kl">Total Task</div><div class="kv">${fTask.toLocaleString('id-ID')}</div><div class="ks">task troubleshoot reguler</div></div>
-    <div class="kpi-card"><div class="kl">Actual Fullfill</div><div class="kv c-orange">${fAct.toLocaleString('id-ID')}</div><div class="ks">actual selesai</div></div>
-    <div class="kpi-card"><div class="kl">FR%</div><div class="kv ${fFRCls}">${fFR ? fFR+'%' : '-'}</div><div class="ks">Actual / Task</div></div>
-    <div class="kpi-card"><div class="kl">Total MP</div><div class="kv">${kpi.totalMP.toLocaleString('id-ID')}</div><div class="ks">man power</div></div>
+    <div class="kpi-card"><div class="kl">${sec.fcLabel}</div><div class="kv">${totalFC.toLocaleString('id-ID')}</div><div class="ks">total</div></div>
+    <div class="kpi-card"><div class="kl">${sec.actLabel}</div><div class="kv c-orange">${totalAct.toLocaleString('id-ID')}</div><div class="ks">total</div></div>
+    ${sec.pctLabel ? `<div class="kpi-card"><div class="kl">FR%</div><div class="kv ${frCls}">${fr?fr+'%':'-'}</div><div class="ks">achievement</div></div>` : ''}
+    ${sec.lineLabel ? `<div class="kpi-card"><div class="kl">Avg Qty/MP</div><div class="kv c-blue">${avgLine?avgLine.toLocaleString('id-ID'):'-'}</div><div class="ks">rata-rata harian</div></div>` : ''}
   </div>
-
   <div class="chart-card">
-    <div class="chart-title">Task vs Actual Fullfill — per hari</div>
-    <div class="chart-wrap" style="height:260px"><canvas id="ts_chart_daily"></canvas></div>
+    <div class="chart-title">${sec.name} — per hari</div>
+    <div class="chart-wrap" style="height:280px"><canvas id="ts_sec_chart"></canvas></div>
   </div>
-
-  <div class="section-title">📋 Metrics per Hari — Qty</div>
+  <div class="section-title">📋 Detail Metrics per Hari</div>
   <div class="table-card">
-    <div class="table-header"><span>Troubleshoot Qty Detail</span><span style="font-size:10px;color:#94a3b8">scroll → lihat semua</span></div>
-    <div class="overview-table-wrap">
-      <table class="overview-table">
-        <thead><tr><th style="min-width:220px">Metric</th>${dateHeaders}</tr></thead>
-        <tbody>${buildTableRows(QTY_METRICS)}</tbody>
-      </table>
-    </div>
-  </div>
-
-  <div class="section-title">📊 Metrics per Hari — Persentase</div>
-  <div class="table-card">
-    <div class="table-header"><span>Troubleshoot % Detail</span><span style="font-size:10px;color:#94a3b8">scroll → lihat semua</span></div>
-    <div class="overview-table-wrap">
-      <table class="overview-table">
-        <thead><tr><th style="min-width:220px">Metric</th>${dateHeaders}</tr></thead>
-        <tbody>${buildTableRows(PCT_METRICS)}</tbody>
-      </table>
+    <div class="table-header"><span>${sec.name} — Daily Detail</span><span style="font-size:10px;color:#94a3b8">${filteredDates.length} hari · scroll →</span></div>
+    <div class="table-container">
+      <div class="frozen-left">
+        <table><thead><tr><th>Metric</th></tr></thead>
+          <tbody>${secMetrics.map(m=>`<tr><td>${m.label}</td></tr>`).join('')}</tbody>
+        </table>
+      </div>
+      <div class="scroll-right">
+        <table><thead><tr>${dateHeaders}</tr></thead>
+          <tbody>${secMetrics.map(m => {
+            const cells = filteredDates.map(d => {
+              const v = m.daily[d];
+              if (v===null||v===undefined) return `<td><span class="zero">-</span></td>`;
+              if (m.isPct) {
+                const cls = v>=95?'pct-high':v>=80?'pct-mid':v>0?'pct-low':'zero';
+                return `<td class="${cls}">${v.toFixed(1)}%</td>`;
+              }
+              return `<td class="${v>0?'':'zero'}">${v>0?Number(v).toLocaleString('id-ID'):'-'}</td>`;
+            }).join('');
+            return `<tr>${cells}</tr>`;
+          }).join('')}</tbody>
+        </table>
+      </div>
     </div>
   </div>`;
 
   setTimeout(() => {
-    const ctx = document.getElementById('ts_chart_daily');
+    const ctx = document.getElementById('ts_sec_chart');
     if (!ctx) return;
-    chartInstances['ts_daily'] = new Chart(ctx.getContext('2d'), {
-      data: {
-        labels: filteredDates,
-        datasets: [
-          { type:'bar', label:'Task', data: filteredDates.map(d => fcMetric?.daily[d]||0), backgroundColor: COLOR_FC_BG, borderColor: COLOR_FC, borderWidth:1, borderRadius:3, yAxisID:'y',
-            datalabels:{ anchor:'end', align:'end', color:COLOR_FC, font:{size:9,weight:'700'}, formatter:fmtShort, display: ctx => ctx.raw > 0 } },
-          { type:'bar', label:'Actual Fullfill', data: filteredDates.map(d => actMetric?.daily[d]||0), backgroundColor: COLOR_ACT_BG, borderColor: COLOR_ACT, borderWidth:1, borderRadius:3, yAxisID:'y',
-            datalabels:{ anchor:'end', align:'end', color:COLOR_ACT, font:{size:9,weight:'700'}, formatter:fmtShort, display: ctx => ctx.raw > 0 } },
-          { type:'line', label:'FR%', data: filteredDates.map(d => {
-              const v = frMetric?.daily[d];
-              return v != null ? v : null;
-            }), borderColor:COLOR_PCT, borderWidth:2, pointRadius:3, pointBackgroundColor:COLOR_PCT, tension:0.3, yAxisID:'y2', fill:false,
-            datalabels:{display:false} }
-        ]
-      },
-      options: {
-        responsive:true, maintainAspectRatio:false, interaction:{mode:'index',intersect:false}, layout:{padding:{top:18}},
-        plugins:{ legend:{labels:{color:'#64748b',font:{size:10},boxWidth:12}},
-          tooltip:{callbacks:{label: c => c.dataset.yAxisID==='y2' ? ` ${c.dataset.label}: ${c.raw}%` : ` ${c.dataset.label}: ${Number(c.raw).toLocaleString('id-ID')}`}} },
-        scales:{
-          x:{ticks:{color:'#94a3b8',font:{size:9},maxRotation:45},grid:{color:'#f1f5f9'}},
-          y:{position:'left',ticks:{color:'#94a3b8',font:{size:9},callback:v=>Number(v).toLocaleString('id-ID')},grid:{color:'#f1f5f9'}},
-          y2:{position:'right',min:0,max:120,ticks:{color:COLOR_PCT,font:{size:9},callback:v=>v+'%'},grid:{drawOnChartArea:false}}
-        }
-      }
+    const datasets = [
+      { type:'bar', label: sec.fcLabel, data: filteredDates.map(d=>fcMetric?.daily[d]||0), backgroundColor:COLOR_FC_BG, borderColor:COLOR_FC, borderWidth:1, borderRadius:3, yAxisID:'y',
+        datalabels:{anchor:'end',align:'end',color:COLOR_FC,font:{size:9,weight:'700'},formatter:fmtShort,display:ctx=>ctx.raw>0} },
+      { type:'bar', label: sec.actLabel, data: filteredDates.map(d=>actMetric?.daily[d]||0), backgroundColor:COLOR_ACT_BG, borderColor:COLOR_ACT, borderWidth:1, borderRadius:3, yAxisID:'y',
+        datalabels:{anchor:'end',align:'end',color:COLOR_ACT,font:{size:9,weight:'700'},formatter:fmtShort,display:ctx=>ctx.raw>0} },
+    ];
+    if (lineMetric) {
+      datasets.push({ type:'line', label: lineMetric.label, data: filteredDates.map(d=>lineMetric.daily[d]??null), borderColor:COLOR_PCT, borderWidth:2, pointRadius:3, pointBackgroundColor:COLOR_PCT, tension:0.3, yAxisID:'y2', fill:false, datalabels:{display:false} });
+    }
+    chartInstances['ts_sec'] = new Chart(ctx.getContext('2d'), {
+      data: { labels: filteredDates, datasets },
+      options: tsChartOpts(!!lineMetric)
     });
   }, 50);
 }
+
 
 
 

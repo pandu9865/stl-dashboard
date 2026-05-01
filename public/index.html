@@ -846,21 +846,22 @@ function renderTsOverview() {
 
       new Chart(document.getElementById('ts_ov_reguler').getContext('2d'), {
         data: { labels: filteredDates, datasets: [
-          { type:'bar', label:'Task', data: filteredDates.map(d=>mTask?.daily[d]||0), backgroundColor:COLOR_FC_BG, borderColor:COLOR_FC, borderWidth:1, borderRadius:3, yAxisID:'y',
-            datalabels:{anchor:'end',align:'end',color:COLOR_FC,font:{size:9,weight:'700'},formatter:fmtShort,display:ctx=>ctx.raw>0} },
-          { type:'bar', label:'Actual Fullfill', data: filteredDates.map(d=>mAct?.daily[d]||0), backgroundColor:COLOR_ACT_BG, borderColor:COLOR_ACT, borderWidth:1, borderRadius:3, yAxisID:'y',
-            datalabels:{anchor:'end',align:'end',color:COLOR_ACT,font:{size:9,weight:'700'},formatter:fmtShort,display:ctx=>ctx.raw>0} },
-          { type:'line', label:'FR%', data: filteredDates.map(d=>mFR?.daily[d]??null), borderColor:COLOR_PCT, borderWidth:2, pointRadius:3, pointBackgroundColor:COLOR_PCT, tension:0.3, yAxisID:'y2', fill:false, datalabels:{display:false} }
+          { type:'bar', label:'Task', data: filteredDates.map(d=>mTask?.daily[d]||0), backgroundColor:COLOR_FC_BG, borderColor:COLOR_FC, borderWidth:2, borderRadius:6, yAxisID:'y',
+            datalabels:{anchor:'end',align:'end',color:COLOR_FC,font:{size:10,weight:'700'},formatter:fmtShort,display:ctx=>ctx.raw>0} },
+          { type:'bar', label:'Actual Fullfill', data: filteredDates.map(d=>mAct?.daily[d]||0), backgroundColor:COLOR_ACT_BG, borderColor:COLOR_ACT, borderWidth:2, borderRadius:6, yAxisID:'y',
+            datalabels:{anchor:'end',align:'end',color:COLOR_ACT,font:{size:10,weight:'700'},formatter:fmtShort,display:ctx=>ctx.raw>0} },
+          { type:'line', label:'FR%', data: filteredDates.map(d=>mFR?.daily[d]??null), borderColor:COLOR_PCT, backgroundColor:'#fef3c7', borderWidth:3, pointRadius:6, pointBackgroundColor:COLOR_PCT, tension:0.3, yAxisID:'y2', fill:false,
+            datalabels:{align:'top',color:COLOR_PCT,font:{size:10,weight:'700'},formatter:v=>v!=null?v.toFixed(1)+'%':''} }
         ]},
         options: tsChartOpts()
       });
 
       new Chart(document.getElementById('ts_ov_bti').getContext('2d'), {
         data: { labels: filteredDates, datasets: [
-          { type:'bar', label:'In Items', data: filteredDates.map(d=>mIn?.daily[d]||0), backgroundColor:'#1D9E7566', borderColor:'#1D9E75', borderWidth:1, borderRadius:3, yAxisID:'y',
-            datalabels:{anchor:'end',align:'end',color:'#1D9E75',font:{size:9,weight:'700'},formatter:fmtShort,display:ctx=>ctx.raw>0} },
-          { type:'bar', label:'Out Items', data: filteredDates.map(d=>mOut?.daily[d]||0), backgroundColor:COLOR_ACT_BG, borderColor:COLOR_ACT, borderWidth:1, borderRadius:3, yAxisID:'y',
-            datalabels:{anchor:'end',align:'end',color:COLOR_ACT,font:{size:9,weight:'700'},formatter:fmtShort,display:ctx=>ctx.raw>0} },
+          { type:'bar', label:'In Items', data: filteredDates.map(d=>mIn?.daily[d]||0), backgroundColor:'#1D9E7566', borderColor:'#1D9E75', borderWidth:2, borderRadius:6, yAxisID:'y',
+            datalabels:{anchor:'end',align:'end',color:'#1D9E75',font:{size:10,weight:'700'},formatter:fmtShort,display:ctx=>ctx.raw>0} },
+          { type:'bar', label:'Out Items', data: filteredDates.map(d=>mOut?.daily[d]||0), backgroundColor:COLOR_ACT_BG, borderColor:COLOR_ACT, borderWidth:2, borderRadius:6, yAxisID:'y',
+            datalabels:{anchor:'end',align:'end',color:COLOR_ACT,font:{size:10,weight:'700'},formatter:fmtShort,display:ctx=>ctx.raw>0} },
         ]},
         options: tsChartOpts(false)
       });
@@ -870,13 +871,15 @@ function renderTsOverview() {
 
 function tsChartOpts(hasPct=true) {
   return {
-    responsive:true, maintainAspectRatio:false, interaction:{mode:'index',intersect:false}, layout:{padding:{top:18}},
-    plugins:{ legend:{labels:{color:'#64748b',font:{size:10},boxWidth:12}},
-      tooltip:{callbacks:{label:c=>c.dataset.yAxisID==='y2'?` ${c.dataset.label}: ${c.raw}%`:` ${c.dataset.label}: ${Number(c.raw).toLocaleString('id-ID')}`}} },
+    responsive:true, maintainAspectRatio:false, interaction:{mode:'index',intersect:false}, layout:{padding:{top:24}},
+    plugins:{
+      legend:{labels:{color:'#475569',font:{size:11},boxWidth:14}},
+      tooltip:{callbacks:{label:c=>c.dataset.yAxisID==='y2'?` ${c.dataset.label}: ${c.raw}%`:` ${c.dataset.label}: ${Number(c.raw).toLocaleString('id-ID')}`}}
+    },
     scales:{
-      x:{ticks:{color:'#94a3b8',font:{size:9},maxRotation:45},grid:{color:'#f1f5f9'}},
-      y:{position:'left',ticks:{color:'#94a3b8',font:{size:9},callback:v=>Number(v).toLocaleString('id-ID')},grid:{color:'#f1f5f9'}},
-      ...(hasPct ? {y2:{position:'right',min:0,max:120,ticks:{color:COLOR_PCT,font:{size:9},callback:v=>v+'%'},grid:{drawOnChartArea:false}}} : {})
+      x:{ticks:{color:'#64748b',font:{size:11}},grid:{color:'#f1f5f9'}},
+      y:{position:'left',ticks:{color:'#64748b',font:{size:10},callback:v=>Number(v).toLocaleString('id-ID')},grid:{color:'#f1f5f9'}},
+      ...(hasPct ? {y2:{position:'right',min:0,max:130,ticks:{color:COLOR_PCT,font:{size:10},callback:v=>v+'%'},grid:{drawOnChartArea:false}}} : {})
     }
   };
 }
@@ -967,13 +970,14 @@ async function renderTsSection(sectionKey) {
     const ctx = document.getElementById('ts_sec_chart');
     if (!ctx) return;
     const datasets = [
-      { type:'bar', label: sec.fcLabel, data: filteredDates.map(d=>fcMetric?.daily[d]||0), backgroundColor:COLOR_FC_BG, borderColor:COLOR_FC, borderWidth:1, borderRadius:3, yAxisID:'y',
-        datalabels:{anchor:'end',align:'end',color:COLOR_FC,font:{size:9,weight:'700'},formatter:fmtShort,display:ctx=>ctx.raw>0} },
-      { type:'bar', label: sec.actLabel, data: filteredDates.map(d=>actMetric?.daily[d]||0), backgroundColor:COLOR_ACT_BG, borderColor:COLOR_ACT, borderWidth:1, borderRadius:3, yAxisID:'y',
-        datalabels:{anchor:'end',align:'end',color:COLOR_ACT,font:{size:9,weight:'700'},formatter:fmtShort,display:ctx=>ctx.raw>0} },
+      { type:'bar', label: sec.fcLabel, data: filteredDates.map(d=>fcMetric?.daily[d]||0), backgroundColor:COLOR_FC_BG, borderColor:COLOR_FC, borderWidth:2, borderRadius:6, yAxisID:'y',
+        datalabels:{anchor:'end',align:'end',color:COLOR_FC,font:{size:10,weight:'700'},formatter:fmtShort,display:ctx=>ctx.raw>0} },
+      { type:'bar', label: sec.actLabel, data: filteredDates.map(d=>actMetric?.daily[d]||0), backgroundColor:COLOR_ACT_BG, borderColor:COLOR_ACT, borderWidth:2, borderRadius:6, yAxisID:'y',
+        datalabels:{anchor:'end',align:'end',color:COLOR_ACT,font:{size:10,weight:'700'},formatter:fmtShort,display:ctx=>ctx.raw>0} },
     ];
     if (lineMetric) {
-      datasets.push({ type:'line', label: lineMetric.label, data: filteredDates.map(d=>lineMetric.daily[d]??null), borderColor:COLOR_PCT, borderWidth:2, pointRadius:3, pointBackgroundColor:COLOR_PCT, tension:0.3, yAxisID:'y2', fill:false, datalabels:{display:false} });
+      datasets.push({ type:'line', label: lineMetric.label, data: filteredDates.map(d=>lineMetric.daily[d]??null), borderColor:COLOR_PCT, backgroundColor:'#fef3c7', borderWidth:3, pointRadius:6, pointBackgroundColor:COLOR_PCT, tension:0.3, yAxisID:'y2', fill:false,
+        datalabels:{align:'top',color:COLOR_PCT,font:{size:10,weight:'700'},formatter:v=>v!=null?(sec.pctLabel?v.toFixed(1)+'%':v.toFixed(1)):''} });
     }
     chartInstances['ts_sec'] = new Chart(ctx.getContext('2d'), {
       data: { labels: filteredDates, datasets },

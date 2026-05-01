@@ -239,6 +239,9 @@ let ibFilters      = {};
 // ── PUTAWAY STATE ──
 let globalPutaway  = null;
 
+// ── TROUBLESHOOT STATE ──
+let globalTroubleshoot = null;
+
 const SECTION_KEYS = ['ss-putaway','replenish-system','safety-stock','param-manual','milkrun'];
 const PAGE_TITLES  = {
   'overview':'Overview Replenish','ss-putaway':'Safety Stock Putaway',
@@ -246,7 +249,7 @@ const PAGE_TITLES  = {
   'param-manual':'Parameter Manual','milkrun':'Milkrun',
   'putaway':'Putaway','troubleshoot':'Troubleshoot','grouper':'Grouper','inbound':'Inbound'
 };
-const COMING_SOON_PAGES = ['troubleshoot','grouper'];
+const COMING_SOON_PAGES = ['grouper'];
 
 const COLOR_FC     = '#8b5cf6';
 const COLOR_FC_BG  = '#8b5cf6cc';
@@ -347,7 +350,8 @@ function renderPage(page) {
   if (COMING_SOON_PAGES.includes(page)) { renderComingSoon(page); return; }
   if (page === 'overview')  { renderOverview(); return; }
   if (page === 'inbound')   { renderInbound(); return; }
-  if (page === 'putaway')   { renderPutaway(); return; }
+  if (page === 'putaway')       { renderPutaway(); return; }
+  if (page === 'troubleshoot')  { renderTroubleshoot(); return; }
   const idx = SECTION_KEYS.indexOf(page);
   if (idx >= 0 && globalData) renderSection(globalData.sections[idx], idx);
 }
@@ -704,8 +708,132 @@ function resetIbFilters() {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// PUTAWAY
+// TROUBLESHOOT
 // ══════════════════════════════════════════════════════════════════════════════
+
+async function renderTroubleshoot() {
+  if (!globalTroubleshoot) {
+    document.getElementById('content').innerHTML = '<div class="loading">Loading troubleshoot<span class="dot">.</span><span class="dot">.</span><span class="dot">.</span></div>';
+    try {
+      globalTroubleshoot = await fetch('/api/troubleshoot').then(r => r.json());
+    } catch(e) {
+      document.getElementById('content').innerHTML = `<div class="loading">Error: ${e.message}</div>`;
+      return;
+    }
+  }
+
+  const { dates, metrics, kpi } = globalTroubleshoot;
+  const frCls = kpi.fr >= 95 ? 'c-green' : kpi.fr >= 80 ? 'c-yellow' : 'c-red';
+
+  const { from, to } = getFromTo();
+  const months = {Jan:'01',Feb:'02',Mar:'03',Apr:'04',May:'05',Jun:'06',Jul:'07',Aug:'08',Sep:'09',Oct:'10',Nov:'11',Dec:'12'};
+  const filteredDates = dates.filter(d => {
+    const parts = d.trim().split(' ');
+    const day = parts[0].padStart(2,'0');
+    const mon = months[parts[1]] || '05';
+    const iso = `2026-${mon}-${day}`;
+    if (from && iso < from) return false;
+    if (to   && iso > to)   return false;
+    return true;
+  });
+
+  const QTY_METRICS = metrics.filter(m => !m.isPct);
+  const PCT_METRICS = metrics.filter(m => m.isPct);
+  const fcMetric  = metrics.find(m => m.label === 'Task Troubleshoot Reguler');
+  const actMetric = metrics.find(m => m.label === 'Actual Fullfill');
+  const frMetric  = metrics.find(m => m.label === 'Troubleshoot FR %');
+
+  const buildTableRows = (metricList) => metricList.map(m => {
+    const cells = filteredDates.map(d => {
+      const v = m.daily[d];
+      if (v === null || v === undefined) return '<td><span class="zero">-</span></td>';
+      if (m.isPct) {
+        const cls = v >= 95 ? 'pct-high' : v >= 80 ? 'pct-mid' : v > 0 ? 'pct-low' : 'zero';
+        return `<td class="${cls}">${v.toFixed(1)}%</td>`;
+      }
+      return `<td>${v > 0 ? Number(v).toLocaleString('id-ID') : '<span class="zero">-</span>'}</td>`;
+    }).join('');
+    return `<tr><td>${m.label}</td>${cells}</tr>`;
+  }).join('');
+
+  const dateHeaders = filteredDates.map(d => `<th>${d}</th>`).join('');
+
+  // KPI filtered
+  const sumD = (metric) => metric ? filteredDates.reduce((s,d) => s+(metric.daily[d]||0), 0) : 0;
+  const fTask = Math.round(sumD(fcMetric));
+  const fAct  = Math.round(sumD(actMetric));
+  const fFR   = fTask > 0 ? Math.round(fAct/fTask*100) : 0;
+  const fFRCls = fFR >= 95 ? 'c-green' : fFR >= 80 ? 'c-yellow' : 'c-red';
+
+  document.getElementById('content').innerHTML = `
+  ${dateRangeBadge()}
+  <div class="kpi-row">
+    <div class="kpi-card"><div class="kl">Total Task</div><div class="kv">${fTask.toLocaleString('id-ID')}</div><div class="ks">task troubleshoot reguler</div></div>
+    <div class="kpi-card"><div class="kl">Actual Fullfill</div><div class="kv c-orange">${fAct.toLocaleString('id-ID')}</div><div class="ks">actual selesai</div></div>
+    <div class="kpi-card"><div class="kl">FR%</div><div class="kv ${fFRCls}">${fFR ? fFR+'%' : '-'}</div><div class="ks">Actual / Task</div></div>
+    <div class="kpi-card"><div class="kl">Total MP</div><div class="kv">${kpi.totalMP.toLocaleString('id-ID')}</div><div class="ks">man power</div></div>
+  </div>
+
+  <div class="chart-card">
+    <div class="chart-title">Task vs Actual Fullfill — per hari</div>
+    <div class="chart-wrap" style="height:260px"><canvas id="ts_chart_daily"></canvas></div>
+  </div>
+
+  <div class="section-title">📋 Metrics per Hari — Qty</div>
+  <div class="table-card">
+    <div class="table-header"><span>Troubleshoot Qty Detail</span><span style="font-size:10px;color:#94a3b8">scroll → lihat semua</span></div>
+    <div class="overview-table-wrap">
+      <table class="overview-table">
+        <thead><tr><th style="min-width:220px">Metric</th>${dateHeaders}</tr></thead>
+        <tbody>${buildTableRows(QTY_METRICS)}</tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="section-title">📊 Metrics per Hari — Persentase</div>
+  <div class="table-card">
+    <div class="table-header"><span>Troubleshoot % Detail</span><span style="font-size:10px;color:#94a3b8">scroll → lihat semua</span></div>
+    <div class="overview-table-wrap">
+      <table class="overview-table">
+        <thead><tr><th style="min-width:220px">Metric</th>${dateHeaders}</tr></thead>
+        <tbody>${buildTableRows(PCT_METRICS)}</tbody>
+      </table>
+    </div>
+  </div>`;
+
+  setTimeout(() => {
+    const ctx = document.getElementById('ts_chart_daily');
+    if (!ctx) return;
+    chartInstances['ts_daily'] = new Chart(ctx.getContext('2d'), {
+      data: {
+        labels: filteredDates,
+        datasets: [
+          { type:'bar', label:'Task', data: filteredDates.map(d => fcMetric?.daily[d]||0), backgroundColor: COLOR_FC_BG, borderColor: COLOR_FC, borderWidth:1, borderRadius:3, yAxisID:'y',
+            datalabels:{ anchor:'end', align:'end', color:COLOR_FC, font:{size:9,weight:'700'}, formatter:fmtShort, display: ctx => ctx.raw > 0 } },
+          { type:'bar', label:'Actual Fullfill', data: filteredDates.map(d => actMetric?.daily[d]||0), backgroundColor: COLOR_ACT_BG, borderColor: COLOR_ACT, borderWidth:1, borderRadius:3, yAxisID:'y',
+            datalabels:{ anchor:'end', align:'end', color:COLOR_ACT, font:{size:9,weight:'700'}, formatter:fmtShort, display: ctx => ctx.raw > 0 } },
+          { type:'line', label:'FR%', data: filteredDates.map(d => {
+              const v = frMetric?.daily[d];
+              return v != null ? v : null;
+            }), borderColor:COLOR_PCT, borderWidth:2, pointRadius:3, pointBackgroundColor:COLOR_PCT, tension:0.3, yAxisID:'y2', fill:false,
+            datalabels:{display:false} }
+        ]
+      },
+      options: {
+        responsive:true, maintainAspectRatio:false, interaction:{mode:'index',intersect:false}, layout:{padding:{top:18}},
+        plugins:{ legend:{labels:{color:'#64748b',font:{size:10},boxWidth:12}},
+          tooltip:{callbacks:{label: c => c.dataset.yAxisID==='y2' ? ` ${c.dataset.label}: ${c.raw}%` : ` ${c.dataset.label}: ${Number(c.raw).toLocaleString('id-ID')}`}} },
+        scales:{
+          x:{ticks:{color:'#94a3b8',font:{size:9},maxRotation:45},grid:{color:'#f1f5f9'}},
+          y:{position:'left',ticks:{color:'#94a3b8',font:{size:9},callback:v=>Number(v).toLocaleString('id-ID')},grid:{color:'#f1f5f9'}},
+          y2:{position:'right',min:0,max:120,ticks:{color:COLOR_PCT,font:{size:9},callback:v=>v+'%'},grid:{drawOnChartArea:false}}
+        }
+      }
+    });
+  }, 50);
+}
+
+
 
 async function renderPutaway() {
   if (!globalPutaway) {
@@ -1128,6 +1256,7 @@ function renderSection(sec, idx) {
 
 async function loadData() {
   globalPutaway = null;
+  globalTroubleshoot = null;
   document.getElementById('content').innerHTML = '<div class="loading">Loading<span class="dot">.</span><span class="dot">.</span><span class="dot">.</span></div>';
   try {
     if (currentPage === 'putaway') {

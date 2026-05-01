@@ -39,4 +39,12 @@ app.get('/api/putaway', async (req, res) => {
   } catch (err) { console.error('Putaway error:', err); res.status(500).json({ error: err.message }); }
 });
 
+app.get('/api/troubleshoot', async (req, res) => {
+  try {
+    const response = await fetch(APPS_SCRIPT_URL + '?action=troubleshoot', { redirect: 'follow' });
+    const data = await response.json();
+    res.json(data);
+  } catch (err) { console.error('Troubleshoot error:', err); res.status(500).json({ error: err.message }); }
+});
+
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

@@ -551,7 +551,6 @@ function renderCapacityHandler() {
     const cap     = num(r,'Total Capacity');
     const frQ     = qtyPO>0 ? Math.round(qtyDone/qtyPO*100) : 0;
     const frQCls  = frQ>=95?'pct-high':frQ>=80?'pct-mid':frQ>0?'pct-low':'zero';
-    const capUtil = cap>0 ? Math.round(qtyDone/cap*100) : 0;
     return `<tr>
       <td style="font-weight:600;color:#0f172a">Slot ${r['slot name']}</td>
       <td>${num(r,'Total PO').toLocaleString('id-ID')}</td>
@@ -561,8 +560,6 @@ function renderCapacityHandler() {
       <td>${qtyPO.toLocaleString('id-ID')}</td>
       <td>${qtyDone.toLocaleString('id-ID')}</td>
       <td class="${frQCls}">${frQ}%</td>
-      <td>${cap.toLocaleString('id-ID')}</td>
-      <td class="${capUtil>=80?'pct-high':capUtil>=50?'pct-mid':'pct-low'}">${capUtil}%</td>
     </tr>`;
   }).join('');
 
@@ -608,7 +605,6 @@ function renderCapacityHandler() {
           <th>Total PO</th><th>Arrived</th><th>Selesai</th>
           <th>Vendor</th>
           <th>Qty PO</th><th>Qty Selesai</th><th>FR% Qty</th>
-          <th>Capacity</th><th>Cap Util%</th>
         </tr></thead>
         <tbody>${slotRows}</tbody>
         <tfoot><tr>
@@ -620,8 +616,6 @@ function renderCapacityHandler() {
           <td>${totalQtyPO.toLocaleString('id-ID')}</td>
           <td>${totalQtyDone.toLocaleString('id-ID')}</td>
           <td class="${frCls}">${frQty}%</td>
-          <td>${totalCap.toLocaleString('id-ID')}</td>
-          <td>-</td>
         </tr></tfoot>
       </table>
     </div>

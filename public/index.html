@@ -1901,6 +1901,32 @@ async function renderLdpFound() {
   });
   const topSrc = Object.entries(srcFiltered).sort((a,b)=>b[1].value-a[1].value).slice(0,8);
 
+  // Snapshot table totals
+  const totLostQtyAll  = filtSnap.reduce((s,d)=>s+d.lostQty,0);
+  const totLostSkuAll  = filtSnap.reduce((s,d)=>s+d.lostSku,0);
+  const totLostValAll  = filtSnap.reduce((s,d)=>s+d.lostValue,0);
+  const totFoundQtyAll = filtSnap.reduce((s,d)=>s+d.foundQty,0);
+  const totFoundSkuAll = filtSnap.reduce((s,d)=>s+d.foundSku,0);
+  const totFoundValAll = filtSnap.reduce((s,d)=>s+d.foundValue,0);
+  const totRecQty  = totLostQtyAll > 0 ? Math.round(totFoundQtyAll/totLostQtyAll*100) : 0;
+  const totRecVal  = totLostValAll > 0 ? Math.round(totFoundValAll/totLostValAll*100)  : 0;
+  const totRecQtyCls = totRecQty>=80?'pct-high':totRecQty>=50?'pct-mid':'pct-low';
+
+  const snapRows = filtSnap.map(d => {
+    const recQ    = d.recoveryQty;
+    const recQCls = recQ>=80?'pct-high':recQ>=50?'pct-mid':recQ>0?'pct-low':'zero';
+    return `<tr>
+      <td style="font-weight:600;color:#0f172a">${d.dateStr}</td>
+      <td style="color:#ef4444;font-weight:600">${d.lostQty.toLocaleString('id-ID')}</td>
+      <td style="color:#ef4444">${d.lostSku.toLocaleString('id-ID')}</td>
+      <td style="color:#ef4444">${fmtRp(d.lostValue)}</td>
+      <td style="color:#10b981;font-weight:600">${d.foundQty.toLocaleString('id-ID')}</td>
+      <td style="color:#10b981">${d.foundSku.toLocaleString('id-ID')}</td>
+      <td style="color:#10b981">${fmtRp(d.foundValue)}</td>
+      <td class="${recQCls}">${recQ}%</td>
+    </tr>`;
+  }).join('');
+
   // Table rows detail
   const detailRows = filtFound.slice(0,200).map(r => `<tr>
     <td>${r.dateStr}</td>
@@ -1917,39 +1943,6 @@ async function renderLdpFound() {
   document.getElementById('content').innerHTML = `
   ${dateRangeBadge()}
 
-  <!-- Recovery Rate KPI -->
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
-    <div style="background:#fff;border:2px solid #bbf7d0;border-radius:12px;padding:16px;">
-      <div style="font-size:11px;font-weight:700;color:#10b981;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px;">✅ LDP Found</div>
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;">
-        <div class="kpi-card" style="border:none;padding:10px;background:#f0fdf4">
-          <div class="kl">Qty Ditemukan</div><div class="kv c-green">${Math.round(totFoundQty).toLocaleString('id-ID')}</div><div class="ks">total unit</div>
-        </div>
-        <div class="kpi-card" style="border:none;padding:10px;background:#f0fdf4">
-          <div class="kl">SKU Ditemukan</div><div class="kv c-green">${totFoundSku.toLocaleString('id-ID')}</div><div class="ks">total sku</div>
-        </div>
-        <div class="kpi-card" style="border:none;padding:10px;background:#f0fdf4">
-          <div class="kl">Value Recovered</div><div class="kv c-green" style="font-size:15px">${fmtRp(totFoundVal)}</div><div class="ks">total value</div>
-        </div>
-      </div>
-    </div>
-    <div style="background:#fff;border:2px solid #bfdbfe;border-radius:12px;padding:16px;">
-      <div style="font-size:11px;font-weight:700;color:#1d4ed8;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px;">📊 Recovery Rate</div>
-      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;">
-        <div class="kpi-card" style="border:none;padding:10px;background:#eff6ff">
-          <div class="kl">Recovery Rate Qty</div>
-          <div class="kv ${recQtyCls}" style="font-size:28px">${avgRecQty}%</div>
-          <div class="ks">rata-rata harian</div>
-        </div>
-        <div class="kpi-card" style="border:none;padding:10px;background:#eff6ff">
-          <div class="kl">Recovery Rate Value</div>
-          <div class="kv ${recValCls}" style="font-size:28px">${avgRecVal}%</div>
-          <div class="ks">rata-rata harian</div>
-        </div>
-      </div>
-    </div>
-  </div>
-
   <!-- Chart: Daily Recovery -->
   <div class="chart-card">
     <div class="chart-title">Daily Snapshot — Lost vs Found (Qty)</div>
@@ -1964,6 +1957,36 @@ async function renderLdpFound() {
     <div class="chart-card">
       <div class="chart-title">Source Finding — Value Recovered</div>
       <div class="chart-wrap" style="height:${Math.max(topSrc.length*36+60,180)}px"><canvas id="lf_c3"></canvas></div>
+    </div>
+  </div>
+
+  <div class="section-title">📅 Daily Snapshot — Lost vs Found</div>
+  <div class="table-card">
+    <div class="table-header"><span>Perbandingan Harian LDP vs LDP Found</span><span style="font-size:10px;color:#94a3b8">${filtSnap.length} hari</span></div>
+    <div class="overview-table-wrap">
+      <table class="overview-table" style="min-width:700px">
+        <thead><tr>
+          <th style="text-align:left">Date</th>
+          <th style="color:#ef4444">Lost Qty</th>
+          <th style="color:#ef4444">Lost SKU</th>
+          <th style="color:#ef4444">Lost Value</th>
+          <th style="color:#10b981">Qty Found</th>
+          <th style="color:#10b981">SKU Found</th>
+          <th style="color:#10b981">Value Found</th>
+          <th>Recovery%</th>
+        </tr></thead>
+        <tbody>${snapRows}</tbody>
+        <tfoot><tr>
+          <td>TOTAL</td>
+          <td style="color:#ef4444;font-weight:700">${totLostQtyAll.toLocaleString('id-ID')}</td>
+          <td style="color:#ef4444;font-weight:700">${totLostSkuAll.toLocaleString('id-ID')}</td>
+          <td style="color:#ef4444;font-weight:700">${fmtRp(totLostValAll)}</td>
+          <td style="color:#10b981;font-weight:700">${totFoundQtyAll.toLocaleString('id-ID')}</td>
+          <td style="color:#10b981;font-weight:700">${totFoundSkuAll.toLocaleString('id-ID')}</td>
+          <td style="color:#10b981;font-weight:700">${fmtRp(totFoundValAll)}</td>
+          <td class="${totRecQtyCls}">${totRecQty}%</td>
+        </tr></tfoot>
+      </table>
     </div>
   </div>
 

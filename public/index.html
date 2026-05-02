@@ -873,6 +873,7 @@ function tsChartOpts(hasPct=true) {
   return {
     responsive:true, maintainAspectRatio:false, interaction:{mode:'index',intersect:false}, layout:{padding:{top:24}},
     plugins:{
+      datalabels:{},
       legend:{labels:{color:'#475569',font:{size:11},boxWidth:14}},
       tooltip:{callbacks:{label:c=>c.dataset.yAxisID==='y2'?` ${c.dataset.label}: ${c.raw}%`:` ${c.dataset.label}: ${Number(c.raw).toLocaleString('id-ID')}`}}
     },
@@ -1123,7 +1124,7 @@ async function renderPutaway() {
         },
         options: {
           responsive:true, maintainAspectRatio:false, interaction:{mode:'index',intersect:false}, layout:{padding:{top:24}},
-          plugins:{ legend:{labels:{color:'#475569',font:{size:11},boxWidth:14}},
+          plugins:{ datalabels:{}, legend:{labels:{color:'#475569',font:{size:11},boxWidth:14}},
             tooltip:{callbacks:{label: c => c.dataset.yAxisID==='y2' ? ` ${c.dataset.label}: ${c.raw}%` : ` ${c.dataset.label}: ${Number(c.raw).toLocaleString('id-ID')}`}} },
           scales:{
             x:{ticks:{color:'#64748b',font:{size:11},maxRotation:45},grid:{color:'#f1f5f9'}},
@@ -1318,6 +1319,7 @@ function renderOverview() {
       },
       options: { responsive:true, maintainAspectRatio:false, interaction:{mode:'index',intersect:false}, layout:{padding:{top:24}},
         plugins:{ legend:{labels:{color:'#475569',font:{size:11},boxWidth:14}},
+          datalabels:{},
           tooltip:{callbacks:{label: c => c.dataset.yAxisID==='y2' ? ` ${c.dataset.label}: ${c.raw}%` : ` ${c.dataset.label}: ${Number(c.raw).toLocaleString('id-ID')}`}} },
         scales:{ x:{ticks:{color:'#64748b',font:{size:11}},grid:{color:'#f1f5f9'}},
           y:{position:'left',ticks:{color:'#64748b',font:{size:10},callback:v=>Number(v).toLocaleString('id-ID')},grid:{color:'#f1f5f9'}},
@@ -1398,7 +1400,7 @@ function renderSection(sec, idx) {
         ]
       },
       options: { responsive:true, maintainAspectRatio:false, interaction:{mode:'index',intersect:false}, layout:{padding:{top:24}},
-        plugins:{ legend:{labels:{color:'#475569',font:{size:11},boxWidth:14}},
+        plugins:{ datalabels:{}, legend:{labels:{color:'#475569',font:{size:11},boxWidth:14}},
           tooltip:{callbacks:{label: c => c.dataset.yAxisID==='y2' ? ` ${c.dataset.label}: ${c.raw}%` : ` ${c.dataset.label}: ${Number(c.raw).toLocaleString('id-ID')}`}} },
         scales:{ x:{ticks:{color:'#64748b',font:{size:11},maxRotation:45},grid:{color:'#f1f5f9'}},
           y:{position:'left',ticks:{color:'#64748b',font:{size:10},callback:v=>Number(v).toLocaleString('id-ID')},grid:{color:'#f1f5f9'}},

@@ -183,12 +183,11 @@
   </div>
 
   <div class="nav-item" onclick="navigate('putaway')" id="nav-putaway"><span class="icon">📤</span> Putaway</div>
-  <div class="nav-parent" id="parent-troubleshoot" onclick="toggleParent('troubleshoot')">
+  <div class="nav-parent" id="parent-troubleshoot" onclick="toggleParent('troubleshoot'); navigate('ts-reguler')">
     <div class="nav-parent-left"><span class="icon">🔧</span> Troubleshoot</div>
     <span class="nav-arrow">▶</span>
   </div>
   <div class="nav-submenu" id="sub-troubleshoot">
-    <div class="nav-sub-item" onclick="navigate('ts-overview')" id="nav-ts-overview">📊 Overview</div>
     <div class="nav-sub-item" onclick="navigate('ts-reguler')" id="nav-ts-reguler">🔧 Task Reguler</div>
     <div class="nav-sub-item" onclick="navigate('ts-bti')" id="nav-ts-bti">📦 BTI</div>
   </div>
@@ -251,13 +250,13 @@ let globalPutaway  = null;
 let globalTroubleshoot = null;
 
 const SECTION_KEYS = ['ss-putaway','replenish-system','safety-stock','param-manual','milkrun'];
-const TS_KEYS      = ['ts-overview','ts-reguler','ts-bti'];
+const TS_KEYS      = ['ts-reguler','ts-bti'];
 const PAGE_TITLES  = {
   'overview':'Overview Replenish','ss-putaway':'Safety Stock Putaway',
   'replenish-system':'Replenish System','safety-stock':'Safety Stock',
   'param-manual':'Parameter Manual','milkrun':'Milkrun',
   'putaway':'Putaway',
-  'ts-overview':'Overview Troubleshoot','ts-reguler':'Task Troubleshoot Reguler','ts-bti':'BTI',
+  'ts-reguler':'Task Troubleshoot Reguler','ts-bti':'BTI',
   'grouper':'Grouper','inbound':'Inbound'
 };
 const COMING_SOON_PAGES = ['grouper'];
@@ -366,7 +365,6 @@ function renderPage(page) {
   if (page === 'overview')    { renderOverview(); return; }
   if (page === 'inbound')     { renderInbound(); return; }
   if (page === 'putaway')     { renderPutaway(); return; }
-  if (page === 'ts-overview') { renderTsOverview(); return; }
   if (page === 'ts-reguler')  { renderTsSection('reguler'); return; }
   if (page === 'ts-bti')      { renderTsSection('bti'); return; }
   const idx = SECTION_KEYS.indexOf(page);

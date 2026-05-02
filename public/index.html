@@ -191,6 +191,7 @@
     <div class="nav-sub-item" onclick="navigate('ts-reguler')" id="nav-ts-reguler">🔧 Task Reguler</div>
     <div class="nav-sub-item" onclick="navigate('ts-bti')" id="nav-ts-bti">📦 BTI</div>
     <div class="nav-sub-item" onclick="navigate('ts-lost')" id="nav-ts-lost">🔍 Lost / LDP</div>
+    <div class="nav-sub-item" onclick="navigate('ts-ldp-found')" id="nav-ts-ldp-found">✅ LDP Found</div>
   </div>
   <div class="nav-item" onclick="navigate('grouper')" id="nav-grouper"><span class="icon">🗂️</span> Grouper</div>
 
@@ -253,13 +254,13 @@ let globalPutaway  = null;
 let globalTroubleshoot = null;
 
 const SECTION_KEYS = ['ss-putaway','replenish-system','safety-stock','param-manual','milkrun'];
-const TS_KEYS      = ['ts-reguler','ts-bti','ts-lost'];
+const TS_KEYS      = ['ts-reguler','ts-bti','ts-lost','ts-ldp-found'];
 const PAGE_TITLES  = {
   'overview':'Overview Replenish','ss-putaway':'Safety Stock Putaway',
   'replenish-system':'Replenish System','safety-stock':'Safety Stock',
   'param-manual':'Parameter Manual','milkrun':'Milkrun',
   'putaway':'Putaway',
-  'ts-reguler':'Task Troubleshoot Reguler','ts-bti':'BTI','ts-lost':'Lost / LDP',
+  'ts-reguler':'Task Troubleshoot Reguler','ts-bti':'BTI','ts-lost':'Lost / LDP','ts-ldp-found':'LDP Found',
   'grouper':'Grouper','inbound':'Inbound'
 };
 const COMING_SOON_PAGES = ['grouper'];
@@ -371,6 +372,7 @@ function renderPage(page) {
   if (page === 'ts-reguler')  { renderTsSection('reguler'); return; }
   if (page === 'ts-bti')      { renderTsSection('bti'); return; }
   if (page === 'ts-lost')     { renderLost(); return; }
+  if (page === 'ts-ldp-found'){ renderLdpFound(); return; }
   const idx = SECTION_KEYS.indexOf(page);
   if (idx >= 0 && globalData) renderSection(globalData.sections[idx], idx);
 }
@@ -1728,7 +1730,7 @@ async function renderLost() {
     <div class="kpi-card"><div class="kl">SKU Cycle DCC</div><div class="kv c-blue">${cycle} <span style="font-size:13px;color:#94a3b8">/ ${totalSku}</span></div><div class="ks">kena cycle bulan ini</div></div>
   </div>
 `;
-  const tableRows = filteredRows.map((r) => {
+  const tableRows = filteredRows.slice(0,200).map(r => {
     const statusCls = r.status.toLowerCase().includes('hilang') ? 'badge badge-red' : 'badge badge-yellow';
     const remaksCls = r.remaks.toLowerCase().includes('cycle') ? 'badge badge-blue' : '';
     return `<tr>
@@ -1833,10 +1835,208 @@ async function renderLost() {
   }, 50);
 }
 
+// ══════════════════════════════════════════════════════════════════════════════
+// LDP FOUND
+// ══════════════════════════════════════════════════════════════════════════════
+
+let globalLostFound = null;
+
+async function renderLdpFound() {
+  if (!globalLostFound) {
+    document.getElementById('content').innerHTML = '<div class="loading">Loading LDP Found<span class="dot">.</span><span class="dot">.</span><span class="dot">.</span></div>';
+    try {
+      globalLostFound = await fetch('/api/lost-found').then(r => r.json());
+    } catch(e) {
+      document.getElementById('content').innerHTML = `<div class="loading">Error: ${e.message}</div>`;
+      return;
+    }
+  }
+
+  const { snapshot, foundRows, rptDates, rptSources, picMap, sourceMap } = globalLostFound;
+
+  // Filter by date
+  const { from, to } = getFromTo();
+  const filtSnap = snapshot.filter(d => {
+    if (from && d.isoDate < from) return false;
+    if (to   && d.isoDate > to)   return false;
+    return true;
+  });
+  const filtFound = foundRows.filter(r => {
+    if (from && r.isoDate < from) return false;
+    if (to   && r.isoDate > to)   return false;
+    return true;
+  });
+
+  // KPI dari snapshot
+  const totLostQty   = filtSnap.reduce((s,d)=>s+d.lostQty,0);
+  const totLostSku   = filtSnap.length > 0 ? Math.max(...filtSnap.map(d=>d.lostSku)) : 0;
+  const totLostVal   = filtSnap.reduce((s,d)=>s+d.lostValue,0) / Math.max(filtSnap.length,1);
+  const totFoundQty  = filtSnap.reduce((s,d)=>s+d.foundQty,0);
+  const totFoundSku  = filtSnap.reduce((s,d)=>s+d.foundSku,0);
+  const totFoundVal  = filtSnap.reduce((s,d)=>s+d.foundValue,0);
+  const avgRecQty    = filtSnap.length ? Math.round(filtSnap.reduce((s,d)=>s+d.recoveryQty,0)/filtSnap.length) : 0;
+  const avgRecVal    = filtSnap.length ? Math.round(filtSnap.reduce((s,d)=>s+d.recoveryValue,0)/filtSnap.length) : 0;
+  const recQtyCls    = avgRecQty>=80?'c-green':avgRecQty>=50?'c-yellow':'c-red';
+  const recValCls    = avgRecVal>=80?'c-green':avgRecVal>=50?'c-yellow':'c-red';
+
+  const fmtRp = v => 'Rp ' + Math.round(v).toLocaleString('id-ID');
+
+  // Top PIC dari filtered found rows
+  const picFiltered = {};
+  filtFound.forEach(r => {
+    if (!picFiltered[r.pic]) picFiltered[r.pic] = { qty:0, value:0, count:0 };
+    picFiltered[r.pic].qty   += r.qty;
+    picFiltered[r.pic].value += r.valueAll;
+    picFiltered[r.pic].count++;
+  });
+  const topPic = Object.entries(picFiltered).sort((a,b)=>b[1].value-a[1].value).slice(0,10);
+
+  // Top source finding
+  const srcFiltered = {};
+  filtFound.forEach(r => {
+    if (!srcFiltered[r.sourceFinding]) srcFiltered[r.sourceFinding] = { qty:0, value:0, count:0 };
+    srcFiltered[r.sourceFinding].qty   += r.qty;
+    srcFiltered[r.sourceFinding].value += r.valueAll;
+    srcFiltered[r.sourceFinding].count++;
+  });
+  const topSrc = Object.entries(srcFiltered).sort((a,b)=>b[1].value-a[1].value).slice(0,8);
+
+  // Table rows detail
+  const detailRows = filtFound.slice(0,200).map(r => `<tr>
+    <td>${r.dateStr}</td>
+    <td style="font-size:10px">${r.sku}</td>
+    <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.product}">${r.product}</td>
+    <td>${r.qty}</td>
+    <td style="font-size:10px;color:#1d4ed8;font-weight:600">${r.pic}</td>
+    <td style="font-size:10px">${r.sourceFinding}</td>
+    <td style="font-size:10px">${r.lokasiTemuan}</td>
+    <td style="font-size:10px">${r.remaks.includes('CYCLE')||r.remaks.includes('cycle')?`<span class="badge badge-blue">${r.remaks}</span>`:r.remaks}</td>
+    <td style="text-align:right;color:#10b981;font-weight:600">${fmtRp(r.valueAll)}</td>
+  </tr>`).join('');
+
+  document.getElementById('content').innerHTML = `
+  ${dateRangeBadge()}
+
+  <!-- Recovery Rate KPI -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+    <div style="background:#fff;border:2px solid #bbf7d0;border-radius:12px;padding:16px;">
+      <div style="font-size:11px;font-weight:700;color:#10b981;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px;">✅ LDP Found</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;">
+        <div class="kpi-card" style="border:none;padding:10px;background:#f0fdf4">
+          <div class="kl">Qty Ditemukan</div><div class="kv c-green">${Math.round(totFoundQty).toLocaleString('id-ID')}</div><div class="ks">total unit</div>
+        </div>
+        <div class="kpi-card" style="border:none;padding:10px;background:#f0fdf4">
+          <div class="kl">SKU Ditemukan</div><div class="kv c-green">${totFoundSku.toLocaleString('id-ID')}</div><div class="ks">total sku</div>
+        </div>
+        <div class="kpi-card" style="border:none;padding:10px;background:#f0fdf4">
+          <div class="kl">Value Recovered</div><div class="kv c-green" style="font-size:15px">${fmtRp(totFoundVal)}</div><div class="ks">total value</div>
+        </div>
+      </div>
+    </div>
+    <div style="background:#fff;border:2px solid #bfdbfe;border-radius:12px;padding:16px;">
+      <div style="font-size:11px;font-weight:700;color:#1d4ed8;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px;">📊 Recovery Rate</div>
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;">
+        <div class="kpi-card" style="border:none;padding:10px;background:#eff6ff">
+          <div class="kl">Recovery Rate Qty</div>
+          <div class="kv ${recQtyCls}" style="font-size:28px">${avgRecQty}%</div>
+          <div class="ks">rata-rata harian</div>
+        </div>
+        <div class="kpi-card" style="border:none;padding:10px;background:#eff6ff">
+          <div class="kl">Recovery Rate Value</div>
+          <div class="kv ${recValCls}" style="font-size:28px">${avgRecVal}%</div>
+          <div class="ks">rata-rata harian</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Chart: Daily Recovery -->
+  <div class="chart-card">
+    <div class="chart-title">Daily Snapshot — Lost vs Found (Qty)</div>
+    <div class="chart-wrap" style="height:280px"><canvas id="lf_c1"></canvas></div>
+  </div>
+
+  <div class="chart-grid-2">
+    <div class="chart-card">
+      <div class="chart-title">Top PIC — Value Recovered</div>
+      <div class="chart-wrap" style="height:${Math.max(topPic.length*36+60,180)}px"><canvas id="lf_c2"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Source Finding — Value Recovered</div>
+      <div class="chart-wrap" style="height:${Math.max(topSrc.length*36+60,180)}px"><canvas id="lf_c3"></canvas></div>
+    </div>
+  </div>
+
+  <div class="section-title">📋 Detail Item Ketemu (max 200)</div>
+  <div class="table-card">
+    <div class="table-header"><span>LDP Found — Detail</span><span style="font-size:10px;color:#94a3b8">${filtFound.length} items · ${filtSnap.length} hari</span></div>
+    <div class="ib-table-wrap">
+      <table class="ib-table">
+        <thead><tr class="th-labels">
+          <th>Tanggal</th><th>SKU</th><th>Product</th><th>Qty</th>
+          <th>PIC</th><th>Source Finding</th><th>Lokasi Temuan</th><th>Remaks</th><th>Value</th>
+        </tr></thead>
+        <tbody>${detailRows}</tbody>
+      </table>
+    </div>
+  </div>`;
+
+  setTimeout(() => {
+    // Daily Lost vs Found bar+line
+    new Chart(document.getElementById('lf_c1').getContext('2d'), {
+      data: { labels: filtSnap.map(d=>d.dateStr), datasets: [
+        { type:'bar', label:'Lost Qty', data: filtSnap.map(d=>d.lostQty), backgroundColor:'#ef444466', borderColor:'#ef4444', borderWidth:2, borderRadius:6, yAxisID:'y',
+          datalabels:{anchor:'end',align:'end',color:'#ef4444',font:{size:9,weight:'700'},formatter:v=>v>0?String(v):''} },
+        { type:'bar', label:'Found Qty', data: filtSnap.map(d=>d.foundQty), backgroundColor:'#10b98166', borderColor:'#10b981', borderWidth:2, borderRadius:6, yAxisID:'y',
+          datalabels:{anchor:'end',align:'end',color:'#10b981',font:{size:9,weight:'700'},formatter:v=>v>0?String(v):''} },
+        { type:'line', label:'Recovery Rate %', data: filtSnap.map(d=>d.recoveryQty), borderColor:COLOR_PCT, backgroundColor:'#fef3c7', borderWidth:3, pointRadius:6, pointBackgroundColor:COLOR_PCT, tension:0.3, yAxisID:'y2', fill:false,
+          datalabels:{align:'top',color:COLOR_PCT,font:{size:9,weight:'700'},formatter:v=>v>0?v+'%':''} }
+      ]},
+      options:{ responsive:true, maintainAspectRatio:false, interaction:{mode:'index',intersect:false}, layout:{padding:{top:24}},
+        plugins:{ legend:{labels:{color:'#475569',font:{size:11},boxWidth:12}} },
+        scales:{
+          x:{ticks:{color:'#64748b',font:{size:10},maxRotation:45},grid:{color:'#f1f5f9'}},
+          y:{position:'left',ticks:{color:'#64748b',font:{size:10}},grid:{color:'#f1f5f9'}},
+          y2:{position:'right',min:0,max:130,ticks:{color:COLOR_PCT,font:{size:10},callback:v=>v+'%'},grid:{drawOnChartArea:false}}
+        }
+      }
+    });
+
+    // Top PIC horizontal bar
+    new Chart(document.getElementById('lf_c2').getContext('2d'), {
+      type:'bar',
+      data:{ labels: topPic.map(v=>v[0].length>22?v[0].slice(0,22)+'…':v[0]),
+        datasets:[{ data: topPic.map(v=>Math.round(v[1].value)), backgroundColor:'#10b98166', borderColor:'#10b981', borderWidth:2, borderRadius:6,
+          datalabels:{anchor:'end',align:'right',color:'#10b981',font:{size:9,weight:'700'},formatter:v=>fmtRp(v)} }]
+      },
+      options:{ responsive:true, maintainAspectRatio:false, indexAxis:'y', layout:{padding:{right:80}},
+        plugins:{legend:{display:false}},
+        scales:{ x:{ticks:{color:'#94a3b8',font:{size:9},callback:v=>v>=1000000?'Rp '+(v/1000000).toFixed(1)+'jt':'Rp '+(v/1000).toFixed(0)+'rb'},grid:{color:'#f1f5f9'}},
+          y:{ticks:{color:'#475569',font:{size:9}},grid:{display:false}} }
+      }
+    });
+
+    // Source finding bar
+    new Chart(document.getElementById('lf_c3').getContext('2d'), {
+      type:'bar',
+      data:{ labels: topSrc.map(v=>v[0].length>25?v[0].slice(0,25)+'…':v[0]),
+        datasets:[{ data: topSrc.map(v=>Math.round(v[1].value)), backgroundColor:'#378ADD66', borderColor:'#378ADD', borderWidth:2, borderRadius:6,
+          datalabels:{anchor:'end',align:'right',color:'#378ADD',font:{size:9,weight:'700'},formatter:v=>fmtRp(v)} }]
+      },
+      options:{ responsive:true, maintainAspectRatio:false, indexAxis:'y', layout:{padding:{right:80}},
+        plugins:{legend:{display:false}},
+        scales:{ x:{ticks:{color:'#94a3b8',font:{size:9},callback:v=>v>=1000000?'Rp '+(v/1000000).toFixed(1)+'jt':'Rp '+(v/1000).toFixed(0)+'rb'},grid:{color:'#f1f5f9'}},
+          y:{ticks:{color:'#475569',font:{size:9}},grid:{display:false}} }
+      }
+    });
+  }, 50);
+}
+
 async function loadData() {
   globalPutaway = null;
   globalTroubleshoot = null;
   globalLost = null;
+  globalLostFound = null;
   document.getElementById('content').innerHTML = '<div class="loading">Loading<span class="dot">.</span><span class="dot">.</span><span class="dot">.</span></div>';
   try {
     if (currentPage === 'putaway') {

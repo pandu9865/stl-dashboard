@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>STL Dashboard</title>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { font-family: 'Segoe UI', sans-serif; background: #f1f5f9; color: #1e293b; display: flex; height: 100vh; overflow: hidden; }
@@ -231,11 +231,7 @@
 </div>
 
 <script>
-if (window.ChartDataLabels) {
-  Chart.register(ChartDataLabels);
-} else {
-  console.warn('ChartDataLabels not loaded');
-}
+if (window.ChartDataLabels) Chart.register(ChartDataLabels);
 
 let globalData    = null;
 let globalRekap   = null;
@@ -1114,9 +1110,9 @@ async function renderPutaway() {
           labels: filteredDates,
           datasets: [
             { type:'bar', label:'Forecast', data: filteredDates.map(d => fcMetric?.daily[d]||0), backgroundColor: COLOR_FC_BG, borderColor: COLOR_FC, borderWidth:2, borderRadius:6, yAxisID:'y',
-              datalabels:{ anchor:'end', align:'end', color:COLOR_FC, font:{size:10,weight:'700'}, formatter:fmtShort, display: ctx => ctx.raw > 0 } },
+              datalabels:{ anchor:'end', align:'end', color:COLOR_FC, font:{size:10,weight:'700'}, formatter:fmtShort, display: ctx => ctx.raw != null && ctx.raw > 0 } },
             { type:'bar', label:'Actual', data: filteredDates.map(d => actMetric?.daily[d]||0), backgroundColor: COLOR_ACT_BG, borderColor: COLOR_ACT, borderWidth:2, borderRadius:6, yAxisID:'y',
-              datalabels:{ anchor:'end', align:'end', color:COLOR_ACT, font:{size:10,weight:'700'}, formatter:fmtShort, display: ctx => ctx.raw > 0 } },
+              datalabels:{ anchor:'end', align:'end', color:COLOR_ACT, font:{size:10,weight:'700'}, formatter:fmtShort, display: ctx => ctx.raw != null && ctx.raw > 0 } },
             { type:'line', label:'FR%', data: filteredDates.map(d => {
                 const m = frMetric?.daily[d];
                 if (!m) return null;
@@ -1394,9 +1390,9 @@ function renderSection(sec, idx) {
       data: { labels: filtered.map(d=>d.date),
         datasets: [
           { type:'bar', label:'Forecast', data:filtered.map(d=>d.forecast), backgroundColor:COLOR_FC_BG, borderColor:COLOR_FC, borderWidth:2, borderRadius:6, yAxisID:'y',
-            datalabels:{ anchor:'end', align:'end', color:COLOR_FC, font:{size:10,weight:'700'}, formatter:fmtShort, display: ctx => ctx.raw > 0 } },
+            datalabels:{ anchor:'end', align:'end', color:COLOR_FC, font:{size:10,weight:'700'}, formatter:fmtShort, display: ctx => ctx.raw != null && ctx.raw > 0 } },
           { type:'bar', label:'Actual', data:filtered.map(d=>d.actual), backgroundColor:COLOR_ACT_BG, borderColor:COLOR_ACT, borderWidth:2, borderRadius:6, yAxisID:'y',
-            datalabels:{ anchor:'end', align:'end', color:COLOR_ACT, font:{size:10,weight:'700'}, formatter:fmtShort, display: ctx => ctx.raw > 0 } },
+            datalabels:{ anchor:'end', align:'end', color:COLOR_ACT, font:{size:10,weight:'700'}, formatter:fmtShort, display: ctx => ctx.raw != null && ctx.raw > 0 } },
           { type:'line', label:'Achievement %', data:filtered.map(d=>d.pct||null), borderColor:COLOR_PCT, backgroundColor:'#fef3c7', borderWidth:3, pointRadius:6, pointBackgroundColor:COLOR_PCT, tension:0.3, yAxisID:'y2', fill:false,
             datalabels:{ align:'top', color:COLOR_PCT, font:{size:10,weight:'700'}, formatter:v => v ? v+'%' : '' } }
         ]

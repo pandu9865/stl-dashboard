@@ -323,10 +323,10 @@ function fmtP(n) { if (!n||n===0) return '-'; return Number(n).toLocaleString('i
 function pctClass(p) { if (!p||p===0) return 'zero'; if (p>=95) return 'pct-high'; if (p>=80) return 'pct-mid'; return 'pct-low'; }
 function pctClassDec(p) { if (!p||p===0) return 'zero'; if (p>=0.95) return 'pct-high'; if (p>=0.80) return 'pct-mid'; return 'pct-low'; }
 function fmtShort(n) {
-  if (!n||n===0) return '';
+  if (!n || n === 0) return '';
   if (n >= 1000000) return (n/1000000).toFixed(1)+'M';
   if (n >= 1000) return (n/1000).toFixed(1)+'k';
-  return Math.round(n);
+  return String(Math.round(n));
 }
 
 function dateRangeBadge() {
@@ -1110,9 +1110,9 @@ async function renderPutaway() {
           labels: filteredDates,
           datasets: [
             { type:'bar', label:'Forecast', data: filteredDates.map(d => fcMetric?.daily[d]||0), backgroundColor: COLOR_FC_BG, borderColor: COLOR_FC, borderWidth:2, borderRadius:6, yAxisID:'y',
-              datalabels:{ anchor:'end', align:'end', color:COLOR_FC, font:{size:10,weight:'700'}, formatter:fmtShort, display: ctx => ctx.raw > 0 } },
+              datalabels:{ anchor:'end', align:'end', color:COLOR_FC, font:{size:10,weight:'700'}, formatter:fmtShort, display: ctx => ctx.raw != null && ctx.raw > 0 } },
             { type:'bar', label:'Actual', data: filteredDates.map(d => actMetric?.daily[d]||0), backgroundColor: COLOR_ACT_BG, borderColor: COLOR_ACT, borderWidth:2, borderRadius:6, yAxisID:'y',
-              datalabels:{ anchor:'end', align:'end', color:COLOR_ACT, font:{size:10,weight:'700'}, formatter:fmtShort, display: ctx => ctx.raw > 0 } },
+              datalabels:{ anchor:'end', align:'end', color:COLOR_ACT, font:{size:10,weight:'700'}, formatter:fmtShort, display: ctx => ctx.raw != null && ctx.raw > 0 } },
             { type:'line', label:'FR%', data: filteredDates.map(d => {
                 const m = frMetric?.daily[d];
                 if (!m) return null;
@@ -1309,9 +1309,9 @@ function renderOverview() {
       data: { labels,
         datasets: [
           { type:'bar', label:'Forecast', data:fcData, backgroundColor:COLOR_FC_BG, borderColor:COLOR_FC, borderWidth:2, borderRadius:6, yAxisID:'y',
-            datalabels:{ anchor:'end', align:'end', color:COLOR_FC, font:{size:10,weight:'700'}, formatter:fmtShort } },
+            datalabels:{ anchor:'end', align:'end', color:COLOR_FC, font:{size:10,weight:'700'}, formatter:fmtShort, display: ctx => ctx.raw > 0 } },
           { type:'bar', label:'Actual', data:actData, backgroundColor:COLOR_ACT_BG, borderColor:COLOR_ACT, borderWidth:2, borderRadius:6, yAxisID:'y',
-            datalabels:{ anchor:'end', align:'end', color:COLOR_ACT, font:{size:10,weight:'700'}, formatter:fmtShort } },
+            datalabels:{ anchor:'end', align:'end', color:COLOR_ACT, font:{size:10,weight:'700'}, formatter:fmtShort, display: ctx => ctx.raw > 0 } },
           { type:'line', label:'Avg Achievement %', data:pctData, borderColor:COLOR_PCT, backgroundColor:'#fef3c7', borderWidth:3, pointRadius:6, pointBackgroundColor:COLOR_PCT, tension:0.3, yAxisID:'y2', fill:false,
             datalabels:{ align:'top', color:COLOR_PCT, font:{size:10,weight:'700'}, formatter:v => v+'%' } }
         ]
@@ -1390,9 +1390,9 @@ function renderSection(sec, idx) {
       data: { labels: filtered.map(d=>d.date),
         datasets: [
           { type:'bar', label:'Forecast', data:filtered.map(d=>d.forecast), backgroundColor:COLOR_FC_BG, borderColor:COLOR_FC, borderWidth:2, borderRadius:6, yAxisID:'y',
-            datalabels:{ anchor:'end', align:'end', color:COLOR_FC, font:{size:10,weight:'700'}, formatter:fmtShort, display: ctx => ctx.raw > 0 } },
+            datalabels:{ anchor:'end', align:'end', color:COLOR_FC, font:{size:10,weight:'700'}, formatter:fmtShort, display: ctx => ctx.raw != null && ctx.raw > 0 } },
           { type:'bar', label:'Actual', data:filtered.map(d=>d.actual), backgroundColor:COLOR_ACT_BG, borderColor:COLOR_ACT, borderWidth:2, borderRadius:6, yAxisID:'y',
-            datalabels:{ anchor:'end', align:'end', color:COLOR_ACT, font:{size:10,weight:'700'}, formatter:fmtShort, display: ctx => ctx.raw > 0 } },
+            datalabels:{ anchor:'end', align:'end', color:COLOR_ACT, font:{size:10,weight:'700'}, formatter:fmtShort, display: ctx => ctx.raw != null && ctx.raw > 0 } },
           { type:'line', label:'Achievement %', data:filtered.map(d=>d.pct||null), borderColor:COLOR_PCT, backgroundColor:'#fef3c7', borderWidth:3, pointRadius:6, pointBackgroundColor:COLOR_PCT, tension:0.3, yAxisID:'y2', fill:false,
             datalabels:{ align:'top', color:COLOR_PCT, font:{size:10,weight:'700'}, formatter:v => v ? v+'%' : '' } }
         ]

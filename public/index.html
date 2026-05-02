@@ -1371,6 +1371,7 @@ function renderOverview() {
   const totMove = active.reduce((s,r)=>s+r.qtyMove,0);
   const avgFR   = active.length ? Math.round(active.reduce((s,r)=>s+r.frPct,0)/active.length) : 0;
   const avgProd = active.length ? Math.round(active.reduce((s,r)=>s+r.prodDay,0)/active.length) : 0;
+  const totMP   = active.reduce((s,r) => s + (r.pic||0), 0);
   const frCls   = avgFR>=95?'c-green':avgFR>=80?'c-yellow':'c-red';
 
   const today = new Date();
@@ -1445,11 +1446,12 @@ function renderOverview() {
 
   document.getElementById('content').innerHTML = `
   ${dateRangeBadge()}
-  <div class="kpi-row">
+  <div class="kpi-row" style="grid-template-columns:repeat(5,1fr)">
     <div class="kpi-card"><div class="kl">Total Task</div><div class="kv">${fmtP(totTask)}</div><div class="ks">qty task keseluruhan</div></div>
     <div class="kpi-card"><div class="kl">Total Qty Move</div><div class="kv c-orange">${fmtP(totMove)}</div><div class="ks">actual move</div></div>
     <div class="kpi-card"><div class="kl">Avg %FR</div><div class="kv ${frCls}">${avgFR?avgFR+'%':'-'}</div><div class="ks">rata-rata fill rate</div></div>
     <div class="kpi-card"><div class="kl">Avg Prod/Day</div><div class="kv c-blue">${avgProd?avgProd.toLocaleString('id-ID'):'-'}</div><div class="ks">produktivitas harian</div></div>
+    <div class="kpi-card"><div class="kl">Total MP</div><div class="kv">${totMP}</div><div class="ks">man power days</div></div>
   </div>
   <div class="section-title">📈 Achievement per Section</div>
   <div class="kpi-row" style="grid-template-columns:repeat(3,1fr)">${kpiCards}</div>

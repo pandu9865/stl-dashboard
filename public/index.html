@@ -1205,7 +1205,7 @@ function renderOverview() {
   const summaryRows = (globalSummary?.metrics||[])
     .filter(m => m.label !== 'Description')
     .map(m => {
-      const isPct = m.label.includes('%') && !PCT_EXCLUDE.includes(m.label);
+      const isPct = m.isPct !== undefined ? m.isPct : (m.label.includes('%') && !PCT_EXCLUDE.includes(m.label));
       const cells = summaryDates.map(d => {
         const val = m.daily[d] || 0;
         if (!val) return '<td><span class="zero">-</span></td>';

@@ -928,12 +928,25 @@ async function renderTsSection(sectionKey) {
   document.getElementById('content').innerHTML = `
   ${dateRangeBadge()}
   <div class="section-page-header"><h2>${sec.name}</h2></div>
+  ${sectionKey === 'bti' ? `
+  <div class="kpi-row">
+    <div class="kpi-card"><div class="kl">Total Task</div><div class="kv">${totalFC.toLocaleString('id-ID')}</div><div class="ks">total</div></div>
+    <div class="kpi-card"><div class="kl">Daily Out Items BTI</div><div class="kv c-orange">${totalAct.toLocaleString('id-ID')}</div><div class="ks">total</div></div>
+    <div class="kpi-card"><div class="kl">Avg Qty/MP</div><div class="kv c-blue">${avgLine?avgLine.toLocaleString('id-ID'):'-'}</div><div class="ks">rata-rata harian</div></div>
+    <div class="kpi-card"><div class="kl">Total MP</div><div class="kv">${Math.round(sumD(getMetric('Actual MP (BTI)'))).toLocaleString('id-ID')}</div><div class="ks">total</div></div>
+  </div>
+  <div class="kpi-row">
+    <div class="kpi-card"><div class="kl">Daily In Items BTI</div><div class="kv">${Math.round(sumD(getMetric('Daily In Items BTI'))).toLocaleString('id-ID')}</div><div class="ks">total masuk</div></div>
+    <div class="kpi-card"><div class="kl">LDP to Available</div><div class="kv c-green">${Math.round(sumD(getMetric('LDP to Available'))).toLocaleString('id-ID')}</div><div class="ks">total</div></div>
+    <div class="kpi-card"><div class="kl">Fullfill Stock</div><div class="kv c-purple">${Math.round(sumD(getMetric('Fullfill Stock'))).toLocaleString('id-ID')}</div><div class="ks">total</div></div>
+    <div class="kpi-card"><div class="kl">Fullfill Order</div><div class="kv c-yellow">${Math.round(sumD(getMetric('Fullfill Order'))).toLocaleString('id-ID')}</div><div class="ks">total</div></div>
+  </div>` : `
   <div class="kpi-row">
     <div class="kpi-card"><div class="kl">${sec.fcLabel}</div><div class="kv">${totalFC.toLocaleString('id-ID')}</div><div class="ks">total</div></div>
     <div class="kpi-card"><div class="kl">${sec.actLabel}</div><div class="kv c-orange">${totalAct.toLocaleString('id-ID')}</div><div class="ks">total</div></div>
     ${sec.pctLabel ? `<div class="kpi-card"><div class="kl">FR%</div><div class="kv ${frCls}">${fr?fr+'%':'-'}</div><div class="ks">achievement</div></div>` : ''}
     ${sec.lineLabel ? `<div class="kpi-card"><div class="kl">Avg Qty/MP</div><div class="kv c-blue">${avgLine?avgLine.toLocaleString('id-ID'):'-'}</div><div class="ks">rata-rata harian</div></div>` : ''}
-  </div>
+  </div>`}
   <div class="chart-card">
     <div class="chart-title">${sec.name} — per hari</div>
     <div class="chart-wrap" style="height:280px"><canvas id="ts_sec_chart"></canvas></div>

@@ -175,10 +175,10 @@
   </div>
   <div class="nav-submenu open" id="sub-replenish">
     <div class="nav-sub-item active" onclick="navigate('overview')" id="nav-overview">📊 Overview Replenish</div>
-    <div class="nav-sub-item" onclick="navigate('ss-putaway')" id="nav-ss-putaway">📥 Safety stock Putaway</div>
+    <div class="nav-sub-item" onclick="navigate('ss-putaway')" id="nav-ss-putaway">📥 SS Putaway</div>
     <div class="nav-sub-item" onclick="navigate('replenish-system')" id="nav-replenish-system">🔄 Replenish System</div>
-    <div class="nav-sub-item" onclick="navigate('safety-stock')" id="nav-safety-stock">🛡️ Safety Stock Inventory</div>
-    <div class="nav-sub-item" onclick="navigate('param-manual')" id="nav-param-manual">✏️ Parameter L3M</div>
+    <div class="nav-sub-item" onclick="navigate('safety-stock')" id="nav-safety-stock">🛡️ Safety Stock</div>
+    <div class="nav-sub-item" onclick="navigate('param-manual')" id="nav-param-manual">✏️ Parameter Manual</div>
     <div class="nav-sub-item" onclick="navigate('milkrun')" id="nav-milkrun">🚚 Milkrun</div>
   </div>
 
@@ -242,6 +242,8 @@ let chartInstances = {};
 let inboundRows    = null;
 let inboundHeaders = null;
 let ibFilters      = {};
+let ibCapRows      = null;
+let ibActiveTab    = 'po'; // 'po' | 'capacity'
 
 // ── PUTAWAY STATE ──
 let globalPutaway  = null;
@@ -427,12 +429,15 @@ function handleIbFile(file) {
 }
 
 function renderInbound() {
+  if (ibActiveTab === 'capacity') { renderCapacityHandler(); return; }
+
   if (!inboundRows) {
     document.getElementById('content').innerHTML = `
     <div style="max-width:520px;margin:40px auto;">
+      ${ibTabBar()}
       <div class="upload-zone" id="ib-drop-zone" onclick="document.getElementById('ib-upload-input').click()">
         <div class="uz-icon">🚛</div>
-        <h3>Upload CSV Inbound</h3>
+        <h3>Upload CSV — PO Item x Putaway</h3>
         <p>Drag & drop file CSV atau klik untuk pilih file</p>
         <div class="upload-btn">Pilih File CSV</div>
         <input type="file" id="ib-upload-input" accept=".csv" onchange="handleIbFileFromPage(this.files[0])">
@@ -473,6 +478,188 @@ function ibKPI(rows) {
   const fr           = qtyPO > 0 ? Math.round(qtyRcv / qtyPO * 100) : 0;
   return { uniquePO, completedPOs, partialPOs, uniqueSKU, uniqueVendor, uniqueCheck, qtyPO, qtyRcv, fr };
 }
+
+function ibTabBar() {
+  return `<div style="display:flex;gap:8px;margin-bottom:16px;">
+    <button onclick="ibSwitchTab('po')" style="padding:6px 16px;font-size:11px;font-weight:600;border-radius:8px;border:1px solid #e2e8f0;cursor:pointer;background:${ibActiveTab==='po'?'#1d4ed8':'#f8fafc'};color:${ibActiveTab==='po'?'#fff':'#64748b'}">📦 PO Item</button>
+    <button onclick="ibSwitchTab('capacity')" style="padding:6px 16px;font-size:11px;font-weight:600;border-radius:8px;border:1px solid #e2e8f0;cursor:pointer;background:${ibActiveTab==='capacity'?'#1d4ed8':'#f8fafc'};color:${ibActiveTab==='capacity'?'#fff':'#64748b'}">🕐 Capacity Handler</button>
+  </div>`;
+}
+
+function ibSwitchTab(tab) {
+  ibActiveTab = tab;
+  destroyCharts();
+  renderInbound();
+}
+
+function handleCapacityFile(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const parsed = parseCSV(e.target.result);
+    ibCapRows = parsed.rows;
+    document.getElementById('ib-file-label').textContent = `📄 ${file.name} (${ibCapRows.length} rows)`;
+    renderCapacityHandler();
+  };
+  reader.readAsText(file);
+}
+
+function renderCapacityHandler() {
+  if (!ibCapRows) {
+    document.getElementById('content').innerHTML = `
+    <div style="max-width:520px;margin:40px auto;">
+      ${ibTabBar()}
+      <div class="upload-zone" id="cap-drop-zone" onclick="document.getElementById('cap-upload-input').click()">
+        <div class="uz-icon">🕐</div>
+        <h3>Upload CSV — Capacity Handler Summary</h3>
+        <p>Drag & drop file CSV atau klik untuk pilih file</p>
+        <div class="upload-btn">Pilih File CSV</div>
+        <input type="file" id="cap-upload-input" accept=".csv" onchange="handleCapacityFile(this.files[0])">
+      </div>
+    </div>`;
+    const dz = document.getElementById('cap-drop-zone');
+    dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag-over'); });
+    dz.addEventListener('dragleave', () => dz.classList.remove('drag-over'));
+    dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('drag-over'); handleCapacityFile(e.dataTransfer.files[0]); });
+    return;
+  }
+
+  const rows = ibCapRows;
+  const num = (r, k) => parseFloat(String(r[k]||'0').replace(/,/g,'')) || 0;
+
+  // KPI totals
+  const totalPO       = rows.reduce((s,r) => s+num(r,'Total PO'), 0);
+  const totalArrived  = rows.reduce((s,r) => s+num(r,'Total PO Arrived'), 0);
+  const totalDone     = rows.reduce((s,r) => s+num(r,'Total PO Partially/ Completed'), 0);
+  const totalQtyPO    = rows.reduce((s,r) => s+num(r,'Total Qty PO'), 0);
+  const totalQtyDone  = rows.reduce((s,r) => s+num(r,'Total Partial/ Completed Qty PO'), 0);
+  const totalVendor   = rows.reduce((s,r) => s+num(r,'Total Vendor'), 0);
+  const totalCap      = rows.reduce((s,r) => s+num(r,'Total Capacity'), 0);
+  const frQty         = totalQtyPO > 0 ? Math.round(totalQtyDone/totalQtyPO*100) : 0;
+  const frPO          = totalPO > 0 ? Math.round(totalDone/totalPO*100) : 0;
+  const frCls = frQty>=95?'c-green':frQty>=80?'c-yellow':'c-red';
+  const frPOCls = frPO>=95?'c-green':frPO>=80?'c-yellow':'c-red';
+
+  // Date & slot info
+  const date = rows[0]?.['Capacity Handler Date'] || '-';
+  const dest = rows[0]?.['destination_name'] || '-';
+
+  // Per-slot table
+  const slotRows = rows.map(r => {
+    const qtyPO   = num(r,'Total Qty PO');
+    const qtyDone = num(r,'Total Partial/ Completed Qty PO');
+    const cap     = num(r,'Total Capacity');
+    const frQ     = qtyPO>0 ? Math.round(qtyDone/qtyPO*100) : 0;
+    const frQCls  = frQ>=95?'pct-high':frQ>=80?'pct-mid':frQ>0?'pct-low':'zero';
+    const capUtil = cap>0 ? Math.round(qtyDone/cap*100) : 0;
+    return `<tr>
+      <td style="font-weight:600;color:#0f172a">Slot ${r['slot name']}</td>
+      <td>${num(r,'Total PO').toLocaleString('id-ID')}</td>
+      <td>${num(r,'Total PO Arrived').toLocaleString('id-ID')}</td>
+      <td>${num(r,'Total PO Partially/ Completed').toLocaleString('id-ID')}</td>
+      <td>${num(r,'Total Vendor').toLocaleString('id-ID')}</td>
+      <td>${qtyPO.toLocaleString('id-ID')}</td>
+      <td>${qtyDone.toLocaleString('id-ID')}</td>
+      <td class="${frQCls}">${frQ}%</td>
+      <td>${cap.toLocaleString('id-ID')}</td>
+      <td class="${capUtil>=80?'pct-high':capUtil>=50?'pct-mid':'pct-low'}">${capUtil}%</td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('content').innerHTML = `
+  ${ibTabBar()}
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+    <div style="font-size:14px;font-weight:700;color:#0f172a;">📅 ${date}</div>
+    <div style="font-size:12px;color:#64748b;">${dest}</div>
+    <button class="change-file-btn" onclick="document.getElementById('cap-file-change').click()">↑ Ganti File</button>
+    <input type="file" id="cap-file-change" accept=".csv" style="display:none" onchange="handleCapacityFile(this.files[0])">
+  </div>
+
+  <div class="kpi-row">
+    <div class="kpi-card"><div class="kl">Total PO</div><div class="kv">${totalPO.toLocaleString('id-ID')}</div><div class="ks">all slots</div></div>
+    <div class="kpi-card"><div class="kl">PO Selesai</div><div class="kv c-green">${totalDone.toLocaleString('id-ID')}</div><div class="ks">partial / completed</div></div>
+    <div class="kpi-card"><div class="kl">FR% PO</div><div class="kv ${frPOCls}">${frPO}%</div><div class="ks">PO Done / Total PO</div></div>
+    <div class="kpi-card"><div class="kl">Total Vendor</div><div class="kv">${totalVendor.toLocaleString('id-ID')}</div><div class="ks">all slots</div></div>
+  </div>
+  <div class="kpi-row-3">
+    <div class="kpi-card"><div class="kl">Qty PO</div><div class="kv">${totalQtyPO.toLocaleString('id-ID')}</div><div class="ks">total order qty</div></div>
+    <div class="kpi-card"><div class="kl">Qty Selesai</div><div class="kv c-orange">${totalQtyDone.toLocaleString('id-ID')}</div><div class="ks">partial / completed qty</div></div>
+    <div class="kpi-card"><div class="kl">FR% Qty</div><div class="kv ${frCls}">${frQty}%</div><div class="ks">Qty Done / Qty PO</div></div>
+  </div>
+
+  <div class="chart-grid-2">
+    <div class="chart-card">
+      <div class="chart-title">PO per Slot — Total vs Selesai</div>
+      <div class="chart-wrap" style="height:220px"><canvas id="cap_c1"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Qty per Slot — PO vs Selesai</div>
+      <div class="chart-wrap" style="height:220px"><canvas id="cap_c2"></canvas></div>
+    </div>
+  </div>
+
+  <div class="section-title">📋 Detail per Slot</div>
+  <div class="table-card">
+    <div class="table-header"><span>Capacity Handler — Per Slot</span><span style="font-size:10px;color:#94a3b8">${rows.length} slots</span></div>
+    <div class="overview-table-wrap">
+      <table class="overview-table" style="min-width:700px">
+        <thead><tr>
+          <th style="text-align:left">Slot</th>
+          <th>Total PO</th><th>Arrived</th><th>Selesai</th>
+          <th>Vendor</th>
+          <th>Qty PO</th><th>Qty Selesai</th><th>FR% Qty</th>
+          <th>Capacity</th><th>Cap Util%</th>
+        </tr></thead>
+        <tbody>${slotRows}</tbody>
+        <tfoot><tr>
+          <td>TOTAL</td>
+          <td>${totalPO.toLocaleString('id-ID')}</td>
+          <td>${totalArrived.toLocaleString('id-ID')}</td>
+          <td>${totalDone.toLocaleString('id-ID')}</td>
+          <td>${totalVendor.toLocaleString('id-ID')}</td>
+          <td>${totalQtyPO.toLocaleString('id-ID')}</td>
+          <td>${totalQtyDone.toLocaleString('id-ID')}</td>
+          <td class="${frCls}">${frQty}%</td>
+          <td>${totalCap.toLocaleString('id-ID')}</td>
+          <td>-</td>
+        </tr></tfoot>
+      </table>
+    </div>
+  </div>`;
+
+  setTimeout(() => {
+    const labels = rows.map(r => `Slot ${r['slot name']}`);
+
+    new Chart(document.getElementById('cap_c1').getContext('2d'), {
+      type: 'bar',
+      data: { labels, datasets: [
+        { label:'Total PO', data: rows.map(r=>num(r,'Total PO')), backgroundColor:COLOR_FC_BG, borderColor:COLOR_FC, borderWidth:2, borderRadius:6,
+          datalabels:{anchor:'end',align:'end',color:COLOR_FC,font:{size:11,weight:'700'},formatter:fmtShort} },
+        { label:'Selesai', data: rows.map(r=>num(r,'Total PO Partially/ Completed')), backgroundColor:COLOR_ACT_BG, borderColor:COLOR_ACT, borderWidth:2, borderRadius:6,
+          datalabels:{anchor:'end',align:'end',color:COLOR_ACT,font:{size:11,weight:'700'},formatter:fmtShort} },
+      ]},
+      options:{ responsive:true, maintainAspectRatio:false, layout:{padding:{top:20}},
+        plugins:{ legend:{labels:{color:'#475569',font:{size:10},boxWidth:12}}, tooltip:{} },
+        scales:{ x:{ticks:{color:'#64748b'},grid:{color:'#f1f5f9'}}, y:{ticks:{color:'#64748b',font:{size:10}},grid:{color:'#f1f5f9'}} }
+      }
+    });
+
+    new Chart(document.getElementById('cap_c2').getContext('2d'), {
+      type: 'bar',
+      data: { labels, datasets: [
+        { label:'Qty PO', data: rows.map(r=>num(r,'Total Qty PO')), backgroundColor:COLOR_FC_BG, borderColor:COLOR_FC, borderWidth:2, borderRadius:6,
+          datalabels:{anchor:'end',align:'end',color:COLOR_FC,font:{size:11,weight:'700'},formatter:fmtShort} },
+        { label:'Qty Selesai', data: rows.map(r=>num(r,'Total Partial/ Completed Qty PO')), backgroundColor:COLOR_ACT_BG, borderColor:COLOR_ACT, borderWidth:2, borderRadius:6,
+          datalabels:{anchor:'end',align:'end',color:COLOR_ACT,font:{size:11,weight:'700'},formatter:fmtShort} },
+      ]},
+      options:{ responsive:true, maintainAspectRatio:false, layout:{padding:{top:20}},
+        plugins:{ legend:{labels:{color:'#475569',font:{size:10},boxWidth:12}}, tooltip:{} },
+        scales:{ x:{ticks:{color:'#64748b'},grid:{color:'#f1f5f9'}}, y:{ticks:{color:'#64748b',font:{size:10},callback:v=>fmtShort(v)},grid:{color:'#f1f5f9'}} }
+      }
+    });
+  }, 50);
+}
+
 
 function renderInboundDashboard() {
   const rows = inboundRows;
@@ -520,6 +707,7 @@ function renderInboundDashboard() {
   const avg = arr => arr.length ? Math.round(arr.reduce((s,v)=>s+v,0)/arr.length) : null;
 
   document.getElementById('content').innerHTML = `
+  ${ibTabBar()}
   <div class="kpi-row-5">
     <div class="kpi-card"><div class="kl">Total PO</div><div class="kv">${k.uniquePO.toLocaleString('id-ID')}</div><div class="ks">unique PO numbers</div></div>
     <div class="kpi-card"><div class="kl">PO Completed</div><div class="kv c-green">${completedCount}</div><div class="ks">fully received</div></div>

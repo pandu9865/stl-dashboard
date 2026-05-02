@@ -940,6 +940,17 @@ async function renderTsSection(sectionKey) {
     <div class="kpi-card"><div class="kl">LDP to Available</div><div class="kv c-green">${Math.round(sumD(getMetric('LDP to Available'))).toLocaleString('id-ID')}</div><div class="ks">total</div></div>
     <div class="kpi-card"><div class="kl">Fullfill Stock</div><div class="kv c-purple">${Math.round(sumD(getMetric('Fullfill Stock'))).toLocaleString('id-ID')}</div><div class="ks">total</div></div>
     <div class="kpi-card"><div class="kl">Fullfill Order</div><div class="kv c-yellow">${Math.round(sumD(getMetric('Fullfill Order'))).toLocaleString('id-ID')}</div><div class="ks">total</div></div>
+  </div>` : sectionKey === 'reguler' ? `
+  <div class="kpi-row">
+    <div class="kpi-card"><div class="kl">Task Troubleshoot</div><div class="kv">${totalFC.toLocaleString('id-ID')}</div><div class="ks">total task</div></div>
+    <div class="kpi-card"><div class="kl">Actual Fullfill</div><div class="kv c-orange">${totalAct.toLocaleString('id-ID')}</div><div class="ks">total actual</div></div>
+    <div class="kpi-card"><div class="kl">FR%</div><div class="kv ${frCls}">${fr?fr+'%':'-'}</div><div class="ks">achievement</div></div>
+    <div class="kpi-card"><div class="kl">Total MP</div><div class="kv">${Math.round(sumD(getMetric('Actual MP (Troubleshoot)'))).toLocaleString('id-ID')}</div><div class="ks">total</div></div>
+  </div>
+  <div class="kpi-row">
+    <div class="kpi-card"><div class="kl">Pick to Lost</div><div class="kv c-red">${Math.round(sumD(getMetric('Pick to Lost'))).toLocaleString('id-ID')}</div><div class="ks">total</div></div>
+    <div class="kpi-card"><div class="kl">Pick to Lost %</div><div class="kv c-red">${(() => { const m = getMetric('Pick to Lost %'); const vals = filteredDates.map(d=>m?.daily[d]).filter(v=>v!=null&&v>0); return vals.length ? (vals.reduce((s,v)=>s+v,0)/vals.length).toFixed(1)+'%' : '-'; })()}</div><div class="ks">rata-rata harian</div></div>
+    <div class="kpi-card"><div class="kl">Troubleshoot FR%</div><div class="kv ${frCls}">${fr?fr+'%':'-'}</div><div class="ks">Actual / Task</div></div>
   </div>` : `
   <div class="kpi-row">
     <div class="kpi-card"><div class="kl">${sec.fcLabel}</div><div class="kv">${totalFC.toLocaleString('id-ID')}</div><div class="ks">total</div></div>

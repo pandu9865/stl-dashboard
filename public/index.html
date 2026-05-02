@@ -190,6 +190,7 @@
   <div class="nav-submenu" id="sub-troubleshoot">
     <div class="nav-sub-item" onclick="navigate('ts-reguler')" id="nav-ts-reguler">🔧 Task Reguler</div>
     <div class="nav-sub-item" onclick="navigate('ts-bti')" id="nav-ts-bti">📦 BTI</div>
+    <div class="nav-sub-item" onclick="navigate('ts-lost')" id="nav-ts-lost">🔍 Lost / LDP</div>
   </div>
   <div class="nav-item" onclick="navigate('grouper')" id="nav-grouper"><span class="icon">🗂️</span> Grouper</div>
 
@@ -252,13 +253,13 @@ let globalPutaway  = null;
 let globalTroubleshoot = null;
 
 const SECTION_KEYS = ['ss-putaway','replenish-system','safety-stock','param-manual','milkrun'];
-const TS_KEYS      = ['ts-reguler','ts-bti'];
+const TS_KEYS      = ['ts-reguler','ts-bti','ts-lost'];
 const PAGE_TITLES  = {
   'overview':'Overview Replenish','ss-putaway':'Safety Stock Putaway',
   'replenish-system':'Replenish System','safety-stock':'Safety Stock',
   'param-manual':'Parameter Manual','milkrun':'Milkrun',
   'putaway':'Putaway',
-  'ts-reguler':'Task Troubleshoot Reguler','ts-bti':'BTI',
+  'ts-reguler':'Task Troubleshoot Reguler','ts-bti':'BTI','ts-lost':'Lost / LDP',
   'grouper':'Grouper','inbound':'Inbound'
 };
 const COMING_SOON_PAGES = ['grouper'];
@@ -369,6 +370,7 @@ function renderPage(page) {
   if (page === 'putaway')     { renderPutaway(); return; }
   if (page === 'ts-reguler')  { renderTsSection('reguler'); return; }
   if (page === 'ts-bti')      { renderTsSection('bti'); return; }
+  if (page === 'ts-lost')     { renderLost(); return; }
   const idx = SECTION_KEYS.indexOf(page);
   if (idx >= 0 && globalData) renderSection(globalData.sections[idx], idx);
 }
@@ -1613,9 +1615,182 @@ function renderSection(sec, idx) {
   }, 50);
 }
 
+// ══════════════════════════════════════════════════════════════════════════════
+// LOST / LDP
+// ══════════════════════════════════════════════════════════════════════════════
+
+let globalLost = null;
+
+async function renderLost() {
+  if (!globalLost) {
+    document.getElementById('content').innerHTML = '<div class="loading">Loading Lost/LDP<span class="dot">.</span><span class="dot">.</span><span class="dot">.</span></div>';
+    try {
+      globalLost = await fetch('/api/lost').then(r => r.json());
+    } catch(e) {
+      document.getElementById('content').innerHTML = `<div class="loading">Error: ${e.message}</div>`;
+      return;
+    }
+  }
+
+  const { daily, l1, rows } = globalLost;
+
+  // Filter by date range
+  const { from, to } = getFromTo();
+  const filteredDaily = daily.filter(d => {
+    if (from && d.isoDate < from) return false;
+    if (to   && d.isoDate > to)   return false;
+    return true;
+  });
+  const filteredRows = rows.filter(r => {
+    if (from && r.isoDate < from) return false;
+    if (to   && r.isoDate > to)   return false;
+    return true;
+  });
+
+  // KPI
+  const totalSku   = filteredRows.length;
+  const totalQty   = filteredRows.reduce((s,r) => s+r.qty, 0);
+  const totalValue = filteredRows.reduce((s,r) => s+r.value, 0);
+  const hilang     = filteredRows.filter(r => r.status.toLowerCase().includes('hilang')).length;
+  const pencarian  = filteredRows.filter(r => !r.status.toLowerCase().includes('hilang')).length;
+  const cycle      = filteredRows.filter(r => r.remaks.toLowerCase().includes('cycle')).length;
+
+  // L1 aggregated from filtered rows
+  const l1Filtered = {};
+  filteredRows.forEach(r => {
+    if (!l1Filtered[r.l1]) l1Filtered[r.l1] = { count:0, qty:0, value:0 };
+    l1Filtered[r.l1].count++;
+    l1Filtered[r.l1].qty   += r.qty;
+    l1Filtered[r.l1].value += r.value;
+  });
+  const topL1 = Object.entries(l1Filtered).sort((a,b)=>b[1].value-a[1].value).slice(0,10);
+
+  const fmtRp = v => 'Rp ' + Math.round(v).toLocaleString('id-ID');
+
+  // Table rows
+  const tableRows = filteredRows.slice(0,200).map(r => {
+    const statusCls = r.status.toLowerCase().includes('hilang') ? 'badge badge-red' : 'badge badge-yellow';
+    const remaksCls = r.remaks.toLowerCase().includes('cycle') ? 'badge badge-blue' : '';
+    return `<tr>
+      <td>${r.date}</td>
+      <td style="font-size:10px;color:#334155">${r.sku}</td>
+      <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.product}">${r.product}</td>
+      <td>${r.qty}</td>
+      <td><span class="${statusCls}">${r.status}</span></td>
+      <td style="font-size:10px">${r.l1}</td>
+      <td>${remaksCls ? `<span class="${remaksCls}">${r.remaks}</span>` : r.remaks}</td>
+      <td style="text-align:right;color:#ef4444;font-weight:600">${fmtRp(r.value)}</td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('content').innerHTML = `
+  ${dateRangeBadge()}
+  <div class="kpi-row" style="grid-template-columns:repeat(5,1fr)">
+    <div class="kpi-card"><div class="kl">Total SKU</div><div class="kv c-red">${totalSku.toLocaleString('id-ID')}</div><div class="ks">item hilang/pencarian</div></div>
+    <div class="kpi-card"><div class="kl">Total Qty</div><div class="kv c-orange">${Math.round(totalQty).toLocaleString('id-ID')}</div><div class="ks">unit hilang</div></div>
+    <div class="kpi-card"><div class="kl">Total Value</div><div class="kv c-red" style="font-size:16px">${fmtRp(totalValue)}</div><div class="ks">estimasi kerugian</div></div>
+    <div class="kpi-card"><div class="kl">Barang Hilang</div><div class="kv c-red">${hilang}</div><div class="ks">status hilang</div></div>
+    <div class="kpi-card"><div class="kl">Dalam Pencarian</div><div class="kv c-yellow">${pencarian}</div><div class="ks">masih dicari</div></div>
+  </div>
+  <div class="kpi-row-3">
+    <div class="kpi-card"><div class="kl">SKU Cycle DCC</div><div class="kv c-blue">${cycle}</div><div class="ks">kena cycle bulan ini</div></div>
+    <div class="kpi-card"><div class="kl">Non Priority</div><div class="kv">${totalSku - cycle}</div><div class="ks">diluar cycle</div></div>
+    <div class="kpi-card"><div class="kl">Avg Value/SKU</div><div class="kv c-red" style="font-size:16px">${totalSku>0?fmtRp(totalValue/totalSku):'-'}</div><div class="ks">rata-rata per item</div></div>
+  </div>
+
+  <div class="chart-grid-2">
+    <div class="chart-card">
+      <div class="chart-title">Value Hilang per Hari (Rp)</div>
+      <div class="chart-wrap" style="height:240px"><canvas id="lost_c1"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Top 10 L1 Category — Value Hilang</div>
+      <div class="chart-wrap" style="height:240px"><canvas id="lost_c2"></canvas></div>
+    </div>
+  </div>
+  <div class="chart-grid-2">
+    <div class="chart-card">
+      <div class="chart-title">Status Barang</div>
+      <div class="chart-wrap" style="height:200px"><canvas id="lost_c3"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">SKU Cycle vs Non Priority</div>
+      <div class="chart-wrap" style="height:200px"><canvas id="lost_c4"></canvas></div>
+    </div>
+  </div>
+
+  <div class="section-title">📋 Detail Item (max 200 rows)</div>
+  <div class="table-card">
+    <div class="table-header"><span>Lost / LDP Detail</span><span style="font-size:10px;color:#94a3b8">${filteredRows.length} items · ${filteredDaily.length} hari</span></div>
+    <div class="ib-table-wrap">
+      <table class="ib-table">
+        <thead>
+          <tr class="th-labels">
+            <th>Tanggal</th><th>SKU</th><th>Product</th><th>Qty</th>
+            <th>Status</th><th>L1 Category</th><th>Remaks</th><th>Value</th>
+          </tr>
+        </thead>
+        <tbody>${tableRows}</tbody>
+      </table>
+    </div>
+  </div>`;
+
+  setTimeout(() => {
+    // Value per hari
+    new Chart(document.getElementById('lost_c1').getContext('2d'), {
+      type: 'bar',
+      data: { labels: filteredDaily.map(d=>d.date), datasets: [
+        { label:'Value Hilang', data: filteredDaily.map(d => {
+            const v = filteredRows.filter(r=>r.date===d.date).reduce((s,r)=>s+r.value,0);
+            return Math.round(v);
+          }), backgroundColor:'#ef444466', borderColor:'#ef4444', borderWidth:2, borderRadius:6,
+          datalabels:{anchor:'end',align:'end',color:'#ef4444',font:{size:9,weight:'700'},formatter:v=>v>0?fmtShort(v):''} }
+      ]},
+      options:{ responsive:true, maintainAspectRatio:false, layout:{padding:{top:20}},
+        plugins:{ legend:{display:false} },
+        scales:{ x:{ticks:{color:'#64748b',font:{size:10},maxRotation:45},grid:{color:'#f1f5f9'}},
+          y:{ticks:{color:'#64748b',font:{size:10},callback:v=>fmtShort(v)},grid:{color:'#f1f5f9'}} }
+      }
+    });
+
+    // Top L1
+    new Chart(document.getElementById('lost_c2').getContext('2d'), {
+      type: 'bar',
+      data: { labels: topL1.map(v=>v[0].length>20?v[0].slice(0,20)+'…':v[0]),
+        datasets: [{ data: topL1.map(v=>Math.round(v[1].value)), backgroundColor:'#7F77DDcc', borderColor:'#7F77DD', borderWidth:2, borderRadius:6,
+          datalabels:{anchor:'end',align:'end',color:'#7F77DD',font:{size:9,weight:'700'},formatter:v=>fmtShort(v)} }]
+      },
+      options:{ responsive:true, maintainAspectRatio:false, indexAxis:'y', layout:{padding:{right:40}},
+        plugins:{ legend:{display:false} },
+        scales:{ x:{ticks:{color:'#94a3b8',font:{size:9},callback:v=>fmtShort(v)},grid:{color:'#f1f5f9'}},
+          y:{ticks:{color:'#475569',font:{size:9}},grid:{display:false}} }
+      }
+    });
+
+    // Status donut
+    new Chart(document.getElementById('lost_c3').getContext('2d'), {
+      type:'doughnut',
+      data:{ labels:['Barang Hilang','Dalam Pencarian'], datasets:[{ data:[hilang,pencarian], backgroundColor:['#ef4444','#f59e0b'], borderWidth:0 }] },
+      options:{ responsive:true, maintainAspectRatio:false, cutout:'60%',
+        plugins:{ legend:{position:'bottom',labels:{color:'#475569',font:{size:10},boxWidth:10}},
+          datalabels:{color:'#fff',font:{size:11,weight:'700'},formatter:v=>v} } }
+    });
+
+    // Cycle donut
+    new Chart(document.getElementById('lost_c4').getContext('2d'), {
+      type:'doughnut',
+      data:{ labels:['SKU Cycle','Non Priority'], datasets:[{ data:[cycle, totalSku-cycle], backgroundColor:['#3b82f6','#94a3b8'], borderWidth:0 }] },
+      options:{ responsive:true, maintainAspectRatio:false, cutout:'60%',
+        plugins:{ legend:{position:'bottom',labels:{color:'#475569',font:{size:10},boxWidth:10}},
+          datalabels:{color:'#fff',font:{size:11,weight:'700'},formatter:v=>v} } }
+    });
+  }, 50);
+}
+
 async function loadData() {
   globalPutaway = null;
   globalTroubleshoot = null;
+  globalLost = null;
   document.getElementById('content').innerHTML = '<div class="loading">Loading<span class="dot">.</span><span class="dot">.</span><span class="dot">.</span></div>';
   try {
     if (currentPage === 'putaway') {

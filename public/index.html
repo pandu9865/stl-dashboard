@@ -1729,8 +1729,9 @@ async function renderLost() {
     <div class="kpi-card"><div class="kl">Total Value</div><div class="kv c-red" style="font-size:15px">${fmtRp(totalValue)}</div><div class="ks">semua status</div></div>
     <div class="kpi-card"><div class="kl">SKU Cycle DCC</div><div class="kv c-blue">${cycle} <span style="font-size:13px;color:#94a3b8">/ ${totalSku}</span></div><div class="ks">kena cycle bulan ini</div></div>
   </div>
-`;
-  const tableRows = filteredRows.slice(0,200).map(r => {
+  `;
+
+  const tableRows = filteredRows.slice(0, 200).map(r => {
     const statusCls = r.status.toLowerCase().includes('hilang') ? 'badge badge-red' : 'badge badge-yellow';
     const remaksCls = r.remaks.toLowerCase().includes('cycle') ? 'badge badge-blue' : '';
     return `<tr>
@@ -1840,8 +1841,12 @@ async function renderLost() {
 // ══════════════════════════════════════════════════════════════════════════════
 
 let globalLostFound = null;
+let globalLostReport = null;
+let ldpFoundTab = 'found'; // 'found' | 'report'
 
 async function renderLdpFound() {
+  if (ldpFoundTab === 'report') { renderLostReport(); return; }
+
   if (!globalLostFound) {
     document.getElementById('content').innerHTML = '<div class="loading">Loading LDP Found<span class="dot">.</span><span class="dot">.</span><span class="dot">.</span></div>';
     try {
@@ -1942,8 +1947,10 @@ async function renderLdpFound() {
 
   document.getElementById('content').innerHTML = `
   ${dateRangeBadge()}
-
-  <!-- Chart: Daily Recovery -->
+  <div style="display:flex;gap:8px;margin-bottom:16px;">
+    <button onclick="ldpFoundTab='found';renderLdpFound()" style="padding:6px 16px;font-size:11px;font-weight:600;border-radius:8px;border:1px solid #e2e8f0;cursor:pointer;background:${ldpFoundTab==='found'?'#1d4ed8':'#f8fafc'};color:${ldpFoundTab==='found'?'#fff':'#64748b'}">✅ LDP Found</button>
+    <button onclick="ldpFoundTab='report';renderLostReport()" style="padding:6px 16px;font-size:11px;font-weight:600;border-radius:8px;border:1px solid #e2e8f0;cursor:pointer;background:${ldpFoundTab==='report'?'#1d4ed8':'#f8fafc'};color:${ldpFoundTab==='report'?'#fff':'#64748b'}">📊 Source Lost</button>
+  </div>
   <div class="chart-card">
     <div class="chart-title">Daily Snapshot — Lost vs Found (Qty)</div>
     <div class="chart-wrap" style="height:280px"><canvas id="lf_c1"></canvas></div>
@@ -2055,11 +2062,146 @@ async function renderLdpFound() {
   }, 50);
 }
 
+// ══════════════════════════════════════════════════════════════════════════════
+// SOURCE LOST REPORT
+// ══════════════════════════════════════════════════════════════════════════════
+
+async function renderLostReport() {
+  if (!globalLostReport) {
+    document.getElementById('content').innerHTML = '<div class="loading">Loading Source Lost Report<span class="dot">.</span><span class="dot">.</span><span class="dot">.</span></div>';
+    try {
+      globalLostReport = await fetch('/api/lost-report').then(r => r.json());
+    } catch(e) {
+      document.getElementById('content').innerHTML = `<div class="loading">Error: ${e.message}</div>`;
+      return;
+    }
+  }
+
+  const { dates, sources } = globalLostReport;
+
+  const { from, to } = getFromTo();
+  const filtDates = dates.filter(d => {
+    if (from && d.isoDate < from) return false;
+    if (to   && d.isoDate > to)   return false;
+    return true;
+  });
+
+  // Aggregate per source (filtered dates only)
+  const sourcesFiltered = sources.map(s => {
+    const total = filtDates.reduce((sum, d) => sum + (s.daily[d.isoDate] || 0), 0);
+    return { ...s, filtTotal: total };
+  }).filter(s => s.filtTotal > 0 || s.total > 0);
+
+  const grandTotal = sourcesFiltered.reduce((sum, s) => sum + s.filtTotal, 0);
+
+  // Chart data — top sources
+  const topSources = [...sourcesFiltered].sort((a,b) => b.filtTotal - a.filtTotal).slice(0,10);
+
+  // Tab bar
+  const tabBar = `<div style="display:flex;gap:8px;margin-bottom:16px;">
+    <button onclick="ldpFoundTab='found';destroyCharts();renderLdpFound()" style="padding:6px 16px;font-size:11px;font-weight:600;border-radius:8px;border:1px solid #e2e8f0;cursor:pointer;background:#f8fafc;color:#64748b">✅ LDP Found</button>
+    <button onclick="ldpFoundTab='report';renderLostReport()" style="padding:6px 16px;font-size:11px;font-weight:600;border-radius:8px;border:1px solid #e2e8f0;cursor:pointer;background:#1d4ed8;color:#fff">📊 Source Lost</button>
+  </div>`;
+
+  // Table rows
+  const tableRows = sourcesFiltered.map(s => {
+    const pctFiltered = grandTotal > 0 ? (s.filtTotal / grandTotal * 100).toFixed(1) : '0.0';
+    const pctOriginal = (s.pct * 100).toFixed(2);
+    return `<tr>
+      <td style="font-weight:600;color:#0f172a">${s.name}</td>
+      <td style="color:#ef4444;font-weight:600;text-align:right">${s.filtTotal.toLocaleString('id-ID')}</td>
+      <td style="text-align:right">${pctFiltered}%</td>
+      <td style="text-align:right;color:#94a3b8">${s.total.toLocaleString('id-ID')}</td>
+    </tr>`;
+  }).join('');
+
+  // Daily table
+  const dateHeaders = filtDates.map(d => `<th>${d.dateStr.slice(0,5)}</th>`).join('');
+  const dailyRows = sourcesFiltered.map(s => {
+    const cells = filtDates.map(d => {
+      const v = s.daily[d.isoDate] || 0;
+      return `<td>${v > 0 ? v.toLocaleString('id-ID') : '<span class="zero">-</span>'}</td>`;
+    }).join('');
+    return `<tr><td style="font-weight:600;color:#334155">${s.name}</td>${cells}<td style="font-weight:700;color:#ef4444">${s.filtTotal.toLocaleString('id-ID')}</td></tr>`;
+  }).join('');
+
+  document.getElementById('content').innerHTML = `
+  ${dateRangeBadge()}
+  ${tabBar}
+
+  <div class="kpi-row-3">
+    <div class="kpi-card"><div class="kl">Total Lost (filtered)</div><div class="kv c-red">${grandTotal.toLocaleString('id-ID')}</div><div class="ks">semua source</div></div>
+    <div class="kpi-card"><div class="kl">Jumlah Source</div><div class="kv">${sourcesFiltered.length}</div><div class="ks">source aktif</div></div>
+    <div class="kpi-card"><div class="kl">Periode</div><div class="kv" style="font-size:14px">${filtDates.length} hari</div><div class="ks">tanggal dipilih</div></div>
+  </div>
+
+  <div class="chart-card">
+    <div class="chart-title">Top Source Lost — Qty per Source</div>
+    <div class="chart-wrap" style="height:${Math.max(topSources.length*36+60,180)}px"><canvas id="lr_c1"></canvas></div>
+  </div>
+
+  <div class="section-title">📋 Summary per Source</div>
+  <div class="table-card">
+    <div class="table-header"><span>Source Lost — Total</span><span style="font-size:10px;color:#94a3b8">${filtDates.length} hari · ${sourcesFiltered.length} source</span></div>
+    <div class="overview-table-wrap">
+      <table class="overview-table" style="min-width:500px">
+        <thead><tr>
+          <th style="text-align:left">Source</th>
+          <th>Qty (filtered)</th><th>%</th><th>Total All</th>
+        </tr></thead>
+        <tbody>${tableRows}</tbody>
+        <tfoot><tr>
+          <td>TOTAL</td>
+          <td style="color:#ef4444;font-weight:700;text-align:right">${grandTotal.toLocaleString('id-ID')}</td>
+          <td style="text-align:right">100%</td>
+          <td style="text-align:right;color:#94a3b8">${sources.reduce((s,x)=>s+x.total,0).toLocaleString('id-ID')}</td>
+        </tr></tfoot>
+      </table>
+    </div>
+  </div>
+
+  <div class="section-title">📅 Detail per Hari</div>
+  <div class="table-card">
+    <div class="table-header"><span>Source Lost — Daily</span><span style="font-size:10px;color:#94a3b8">scroll →</span></div>
+    <div class="table-container">
+      <div class="frozen-left">
+        <table><thead><tr><th>Source</th></tr></thead>
+          <tbody>${sourcesFiltered.map(s=>`<tr><td>${s.name}</td></tr>`).join('')}</tbody>
+        </table>
+      </div>
+      <div class="scroll-right">
+        <table><thead><tr>${dateHeaders}<th>Total</th></tr></thead>
+          <tbody>${dailyRows}</tbody>
+        </table>
+      </div>
+    </div>
+  </div>`;
+
+  setTimeout(() => {
+    new Chart(document.getElementById('lr_c1').getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: topSources.map(s => s.name.length > 30 ? s.name.slice(0,30)+'…' : s.name),
+        datasets: [{ data: topSources.map(s => s.filtTotal), backgroundColor: '#ef444466', borderColor: '#ef4444', borderWidth: 2, borderRadius: 6,
+          datalabels: { anchor:'end', align:'right', color:'#ef4444', font:{size:9,weight:'700'}, formatter: v => v.toLocaleString('id-ID') } }]
+      },
+      options: { responsive:true, maintainAspectRatio:false, indexAxis:'y', layout:{padding:{right:60}},
+        plugins: { legend:{display:false} },
+        scales: {
+          x: { ticks:{color:'#94a3b8',font:{size:9}}, grid:{color:'#f1f5f9'} },
+          y: { ticks:{color:'#475569',font:{size:9}}, grid:{display:false} }
+        }
+      }
+    });
+  }, 50);
+}
+
 async function loadData() {
   globalPutaway = null;
   globalTroubleshoot = null;
   globalLost = null;
   globalLostFound = null;
+  globalLostReport = null;
   document.getElementById('content').innerHTML = '<div class="loading">Loading<span class="dot">.</span><span class="dot">.</span><span class="dot">.</span></div>';
   try {
     if (currentPage === 'putaway') {

@@ -71,4 +71,12 @@ app.get('/api/lost-report', async (req, res) => {
   } catch (err) { console.error('Lost-report error:', err); res.status(500).json({ error: err.message }); }
 });
 
+app.get('/api/grouper', async (req, res) => {
+  try {
+    const response = await fetch(APPS_SCRIPT_URL + '?action=grouper', { redirect: 'follow' });
+    const data = await response.json();
+    res.json(data);
+  } catch (err) { console.error('Grouper error:', err); res.status(500).json({ error: err.message }); }
+});
+
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

@@ -1746,8 +1746,8 @@ async function renderLostReport() {
 function tsRegulerTabBar() {
   const btn = (tab, label) => `<button onclick="tsRegulerTab='${tab}';renderTsReguler()" style="padding:6px 16px;font-size:11px;font-weight:600;border-radius:8px;border:1px solid #e2e8f0;cursor:pointer;background:${tsRegulerTab===tab?'#1d4ed8':'#f8fafc'};color:${tsRegulerTab===tab?'#fff':'#64748b'}">${label}</button>`;
   return `<div style="display:flex;gap:8px;margin-bottom:16px;">
-    ${btn('daily','📊 Daily Metrics')}
-    ${btn('weekly','📋 Weekly Report')}
+    ${btn('daily','📊 Daily Report')}
+    ${btn('weekly','📋 Hourly Report Admin')}
     ${btn('zona','🗺️ Daily Allocated Zone')}
   </div>`;
 }

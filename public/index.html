@@ -56,11 +56,6 @@
 
   .date-range-badge { display: inline-flex; align-items: center; gap: 6px; background: #eff6ff; border: 1px solid #bfdbfe; color: #1d4ed8; font-size: 10px; font-weight: 600; padding: 4px 10px; border-radius: 999px; margin-bottom: 16px; }
 
-  .coming-soon { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 60vh; gap: 12px; }
-  .coming-soon .cs-icon { font-size: 48px; }
-  .coming-soon h2 { font-size: 20px; font-weight: 800; color: #0f172a; }
-  .coming-soon p { font-size: 13px; color: #94a3b8; }
-
   .kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 16px; }
   .kpi-row-5 { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 12px; }
   .kpi-row-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px; }
@@ -158,6 +153,22 @@
   .ib-row-count { font-size: 10px; color: #94a3b8; }
   .change-file-btn { padding: 5px 12px; font-size: 10px; font-weight: 600; background: #fff; color: #1d4ed8; border: 1px solid #bfdbfe; border-radius: 6px; cursor: pointer; }
   .change-file-btn:hover { background: #eff6ff; }
+
+  /* ── GROUPER PLANOGRAM TABLE ── */
+  .plan-table { border-collapse: collapse; width: 100%; font-size: 11px; }
+  .plan-table th { background: #f8fafc; padding: 8px 12px; font-size: 9px; font-weight: 700; color: #64748b; text-transform: uppercase; border-bottom: 2px solid #e2e8f0; text-align: center; white-space: nowrap; }
+  .plan-table th.col-zone { text-align: left; min-width: 80px; }
+  .plan-table td { padding: 7px 12px; border-bottom: 1px solid #f8fafc; text-align: center; white-space: nowrap; }
+  .plan-table td.col-zone { font-weight: 700; color: #0f172a; text-align: left; }
+  .plan-table td.status-sesuai { color: #10b981; font-weight: 600; }
+  .plan-table td.status-tidak { color: #ef4444; font-weight: 600; }
+  .plan-table tr.zone-row-s { background: #f8fafc; }
+  .plan-table tr.zone-row-ts {}
+  .plan-table tr.total-row td { font-weight: 700; background: #f1f5f9; border-top: 2px solid #e2e8f0; }
+  .plan-table tr:hover td { background: #f0fdf4; }
+  .plan-table tr.total-row:hover td { background: #f1f5f9; }
+  .pct-sesuai { color: #10b981; font-weight: 700; }
+  .pct-tidak { color: #ef4444; font-weight: 700; }
 </style>
 </head>
 <body>
@@ -205,7 +216,7 @@
   <div class="topbar">
     <div class="topbar-left">
       <h1 id="page-title">Overview</h1>
-      <div class="meta">Sentul Warehouse · April 2026</div>
+      <div class="meta">Sentul Warehouse · May 2026</div>
     </div>
     <div id="topbar-right-replenish" class="filter-bar">
       <div class="quick-filters">
@@ -240,18 +251,15 @@ let globalSummary = null;
 let currentPage   = 'overview';
 let chartInstances = {};
 
-// ── INBOUND STATE ──
 let inboundRows    = null;
 let inboundHeaders = null;
 let ibFilters      = {};
 let ibCapRows      = null;
-let ibActiveTab    = 'po'; // 'po' | 'capacity'
+let ibActiveTab    = 'po';
 
-// ── PUTAWAY STATE ──
-let globalPutaway  = null;
-
-// ── TROUBLESHOOT STATE ──
+let globalPutaway      = null;
 let globalTroubleshoot = null;
+let globalGrouper      = null;
 
 const SECTION_KEYS = ['ss-putaway','replenish-system','safety-stock','param-manual','milkrun'];
 const TS_KEYS      = ['ts-reguler','ts-bti','ts-lost','ts-ldp-found'];
@@ -263,7 +271,6 @@ const PAGE_TITLES  = {
   'ts-reguler':'Task Troubleshoot Reguler','ts-bti':'BTI','ts-lost':'Lost / LDP','ts-ldp-found':'LDP Found',
   'grouper':'Grouper','inbound':'Inbound'
 };
-const COMING_SOON_PAGES = ['grouper'];
 
 const COLOR_FC     = '#8b5cf6';
 const COLOR_FC_BG  = '#8b5cf6cc';
@@ -331,6 +338,10 @@ function fmtShort(n) {
   if (n >= 1000) return (n/1000).toFixed(1)+'k';
   return String(Math.round(n));
 }
+function fmtPct(v) {
+  if (v === null || v === undefined) return '-';
+  return (v * 100).toFixed(2) + '%';
+}
 
 function dateRangeBadge() {
   const { from, to } = getFromTo();
@@ -354,7 +365,6 @@ function navigate(page) {
   }
   document.getElementById('page-title').textContent = PAGE_TITLES[page] || page;
 
-  // toggle topbar
   const isInbound = page === 'inbound';
   document.getElementById('topbar-right-replenish').style.display = isInbound ? 'none' : 'flex';
   document.getElementById('topbar-right-inbound').style.display   = isInbound ? 'flex' : 'none';
@@ -365,26 +375,423 @@ function navigate(page) {
 }
 
 function renderPage(page) {
-  if (COMING_SOON_PAGES.includes(page)) { renderComingSoon(page); return; }
-  if (page === 'overview')    { renderOverview(); return; }
-  if (page === 'inbound')     { renderInbound(); return; }
-  if (page === 'putaway')     { renderPutaway(); return; }
-  if (page === 'ts-reguler')  { renderTsSection('reguler'); return; }
-  if (page === 'ts-bti')      { renderTsSection('bti'); return; }
-  if (page === 'ts-lost')     { renderLost(); return; }
-  if (page === 'ts-ldp-found'){ renderLdpFound(); return; }
+  if (page === 'overview')     { renderOverview(); return; }
+  if (page === 'inbound')      { renderInbound(); return; }
+  if (page === 'putaway')      { renderPutaway(); return; }
+  if (page === 'ts-reguler')   { renderTsSection('reguler'); return; }
+  if (page === 'ts-bti')       { renderTsSection('bti'); return; }
+  if (page === 'ts-lost')      { renderLost(); return; }
+  if (page === 'ts-ldp-found') { renderLdpFound(); return; }
+  if (page === 'grouper')      { renderGrouper(); return; }
   const idx = SECTION_KEYS.indexOf(page);
   if (idx >= 0 && globalData) renderSection(globalData.sections[idx], idx);
 }
 
-function renderComingSoon(page) {
-  const icons = { putaway:'📤', troubleshoot:'🔧', grouper:'🗂️' };
+// ══════════════════════════════════════════════════════════════════════════════
+// GROUPER
+// ══════════════════════════════════════════════════════════════════════════════
+
+async function renderGrouper() {
+  if (!globalGrouper) {
+    document.getElementById('content').innerHTML = '<div class="loading">Loading Grouper<span class="dot">.</span><span class="dot">.</span><span class="dot">.</span></div>';
+    try {
+      globalGrouper = await fetch('/api/grouper').then(r => r.json());
+    } catch(e) {
+      document.getElementById('content').innerHTML = `<div class="loading">Error: ${e.message}</div>`;
+      return;
+    }
+  }
+
+  const { planLeft, planRight, dates, metrics } = globalGrouper;
+
+  // ── Filter tanggal dari topbar ──
+  const { from, to } = getFromTo();
+  const filteredDates = dates.filter(d => {
+    const months = {Jan:'01',Feb:'02',Mar:'03',Apr:'04',May:'05',Jun:'06',Jul:'07',Aug:'08',Sep:'09',Oct:'10',Nov:'11',Dec:'12'};
+    const parts = d.trim().split(' ');
+    const day = parts[0].padStart(2,'0');
+    const mon = months[parts[1]] || '05';
+    const iso = `2026-${mon}-${day}`;
+    if (from && iso < from) return false;
+    if (to   && iso > to)   return false;
+    return true;
+  });
+
+  const getMetric = label => metrics.find(m => m.label === label);
+  const sumD = (label) => {
+    const m = getMetric(label);
+    return m ? filteredDates.reduce((s,d) => s + (m.daily[d] || 0), 0) : 0;
+  };
+  const avgD = (label) => {
+    const m = getMetric(label);
+    if (!m) return 0;
+    const vals = filteredDates.map(d => m.daily[d]).filter(v => v !== null && v !== undefined && v > 0);
+    return vals.length ? vals.reduce((s,v) => s+v, 0) / vals.length : 0;
+  };
+
+  // KPI Daily Grouper
+  const totalTaskQty  = Math.round(sumD('Task grouping planogram (Qty)'));
+  const totalDoneQty  = Math.round(sumD('Completed Task (Qty)'));
+  const totalTaskSloc = Math.round(sumD('Task grouping planogram (Sloc)'));
+  const totalDoneSloc = Math.round(sumD('Completed Task (Sloc)'));
+  const totalMoveLDP  = Math.round(sumD('Move to LDP'));
+  const totalMP       = Math.round(sumD('Actual MP'));
+  const avgPctQty     = totalTaskQty  > 0 ? Math.round(totalDoneQty/totalTaskQty*100)   : 0;
+  const avgPctSloc    = totalTaskSloc > 0 ? Math.round(totalDoneSloc/totalTaskSloc*100) : 0;
+  const avgPlanoAcc   = avgD('Daily plano accuracy (%)');
+
+  const pctQtyCls  = avgPctQty  >= 95 ? 'c-green' : avgPctQty  >= 80 ? 'c-yellow' : 'c-red';
+  const pctSlocCls = avgPctSloc >= 95 ? 'c-green' : avgPctSloc >= 80 ? 'c-yellow' : 'c-red';
+  const planoAccCls = avgPlanoAcc >= 95 ? 'c-green' : avgPlanoAcc >= 80 ? 'c-yellow' : 'c-red';
+
+  // ── Build planogram table rows ──
+  const buildPlanRows = (planData) => {
+    return planData.map(z => {
+      const isTotal = z.zone === 'Total';
+      const rowCls  = isTotal ? 'total-row' : '';
+      const sS  = Number(z.slocSesuai).toLocaleString('id-ID');
+      const sTS = Number(z.slocTidak).toLocaleString('id-ID');
+      const qS  = Number(z.qtySesuai).toLocaleString('id-ID');
+      const qTS = Number(z.qtyTidak).toLocaleString('id-ID');
+      const pSlocS  = (z.pctSlocS  * 100).toFixed(2) + '%';
+      const pSlocTS = (z.pctSlocTS * 100).toFixed(2) + '%';
+      const pQtyS   = (z.pctQtyS   * 100).toFixed(2) + '%';
+      const pQtyTS  = (z.pctQtyTS  * 100).toFixed(2) + '%';
+      const pctSS  = parseFloat(z.pctSlocS) * 100;
+      const pctQS  = parseFloat(z.pctQtyS)  * 100;
+
+      return `
+        <tr class="zone-row-s ${rowCls}">
+          <td class="col-zone" rowspan="2">${z.zone}</td>
+          <td class="status-sesuai">Sesuai</td>
+          <td>${sS}</td>
+          <td class="${pctSS >= 95 ? 'pct-sesuai' : pctSS >= 80 ? 'pct-mid' : 'pct-tidak'}">${pSlocS}</td>
+          <td>${qS}</td>
+          <td class="${pctQS >= 95 ? 'pct-sesuai' : pctQS >= 80 ? 'pct-mid' : 'pct-tidak'}">${pQtyS}</td>
+        </tr>
+        <tr class="zone-row-ts ${rowCls}">
+          <td class="status-tidak">Tidak Sesuai</td>
+          <td>${sTS}</td>
+          <td class="pct-tidak">${pSlocTS}</td>
+          <td>${qTS}</td>
+          <td class="pct-tidak">${pQtyTS}</td>
+        </tr>`;
+    }).join('');
+  };
+
+  // ── Daily metrics table ──
+  const metricLabels = [
+    'Task grouping planogram (Qty)',
+    'Completed Task (Qty)',
+    'Precentage Task Completed (Qty %)',
+    'Task grouping planogram (Sloc)',
+    'Completed Task (Sloc)',
+    'Precentage Task Completed (Sloc %)',
+    'Move to LDP',
+    'Precentage LDP vs Task (%)',
+    'Daily plano accuracy (%)',
+    'Actual MP',
+  ];
+  const dateHeaders = filteredDates.map(d => `<th>${d}</th>`).join('');
+  const metricRows = metricLabels.map(label => {
+    const m = getMetric(label);
+    const cells = filteredDates.map(d => {
+      const v = m ? m.daily[d] : null;
+      if (v === null || v === undefined) return `<td><span class="zero">-</span></td>`;
+      if (m.isPct) {
+        const cls = v >= 95 ? 'pct-high' : v >= 80 ? 'pct-mid' : v > 0 ? 'pct-low' : 'zero';
+        return `<td class="${cls}">${v.toFixed(1)}%</td>`;
+      }
+      return `<td>${v > 0 ? Math.round(v).toLocaleString('id-ID') : '<span class="zero">-</span>'}</td>`;
+    }).join('');
+    return `<tr>${cells}</tr>`;
+  }).join('');
+
   document.getElementById('content').innerHTML = `
-  <div class="coming-soon">
-    <div class="cs-icon">${icons[page]||'🚧'}</div>
-    <h2>${PAGE_TITLES[page]}</h2>
-    <p>Halaman ini sedang dalam pengembangan.</p>
+  ${dateRangeBadge()}
+  <div class="section-page-header">
+    <h2>🗂️ Grouper — Accuracy Planogram</h2>
+    <p>Task grouping planogram & accuracy per hari</p>
+  </div>
+
+  <!-- KPI Daily -->
+  <div class="kpi-row">
+    <div class="kpi-card">
+      <div class="kl">Task Grouping (Qty)</div>
+      <div class="kv">${totalTaskQty.toLocaleString('id-ID')}</div>
+      <div class="ks">total task</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kl">Completed (Qty)</div>
+      <div class="kv c-green">${totalDoneQty.toLocaleString('id-ID')}</div>
+      <div style="height:4px;background:#f1f5f9;border-radius:999px;margin:8px 0;overflow:hidden">
+        <div style="height:100%;width:${Math.min(avgPctQty,100)}%;border-radius:999px;background:${avgPctQty>=95?'#10b981':avgPctQty>=80?'#f59e0b':'#ef4444'}"></div>
+      </div>
+      <div class="ks"><span class="${pctQtyCls}" style="font-weight:700">${avgPctQty}%</span> completion</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kl">Task Grouping (Sloc)</div>
+      <div class="kv">${totalTaskSloc.toLocaleString('id-ID')}</div>
+      <div class="ks">total sloc</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kl">Completed (Sloc)</div>
+      <div class="kv c-green">${totalDoneSloc.toLocaleString('id-ID')}</div>
+      <div style="height:4px;background:#f1f5f9;border-radius:999px;margin:8px 0;overflow:hidden">
+        <div style="height:100%;width:${Math.min(avgPctSloc,100)}%;border-radius:999px;background:${avgPctSloc>=95?'#10b981':avgPctSloc>=80?'#f59e0b':'#ef4444'}"></div>
+      </div>
+      <div class="ks"><span class="${pctSlocCls}" style="font-weight:700">${avgPctSloc}%</span> completion</div>
+    </div>
+  </div>
+  <div class="kpi-row-3">
+    <div class="kpi-card">
+      <div class="kl">Move to LDP</div>
+      <div class="kv c-red">${totalMoveLDP.toLocaleString('id-ID')}</div>
+      <div class="ks">total item pindah ke LDP</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kl">Daily Plano Accuracy</div>
+      <div class="kv ${planoAccCls}">${avgPlanoAcc > 0 ? avgPlanoAcc.toFixed(2) + '%' : '-'}</div>
+      <div class="ks">rata-rata periode</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kl">Actual MP</div>
+      <div class="kv">${totalMP.toLocaleString('id-ID')}</div>
+      <div class="ks">man power days</div>
+    </div>
+  </div>
+
+  <!-- Charts Daily -->
+  <div class="chart-grid-2">
+    <div class="chart-card">
+      <div class="chart-title">Task vs Completed — Qty per hari</div>
+      <div class="chart-wrap" style="height:260px"><canvas id="gr_c1"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Task vs Completed — Sloc per hari</div>
+      <div class="chart-wrap" style="height:260px"><canvas id="gr_c2"></canvas></div>
+    </div>
+  </div>
+  <div class="chart-card">
+    <div class="chart-title">Daily Plano Accuracy (%)</div>
+    <div class="chart-wrap" style="height:200px"><canvas id="gr_c3"></canvas></div>
+  </div>
+
+  <!-- Daily Metrics Table -->
+  <div class="section-title">📋 Detail Metrics per Hari</div>
+  <div class="table-card">
+    <div class="table-header">
+      <span>Grouper — Daily Metrics</span>
+      <span style="font-size:10px;color:#94a3b8">${filteredDates.length} hari · scroll →</span>
+    </div>
+    <div class="table-container">
+      <div class="frozen-left">
+        <table><thead><tr><th>Metric</th></tr></thead>
+          <tbody>${metricLabels.map(l=>`<tr><td>${l}</td></tr>`).join('')}</tbody>
+        </table>
+      </div>
+      <div class="scroll-right">
+        <table><thead><tr>${dateHeaders}</tr></thead>
+          <tbody>${metricRows}</tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Accuracy Planogram Tables -->
+  <div class="section-title">📐 Accuracy Planogram Warehouse-STL</div>
+  <div class="chart-grid-2">
+    <div class="table-card">
+      <div class="table-header"><span>All SKU</span></div>
+      <div class="overview-table-wrap">
+        <table class="plan-table">
+          <thead><tr>
+            <th class="col-zone">Zone</th>
+            <th>Status</th>
+            <th>Sloc</th>
+            <th>% Sloc</th>
+            <th>QTY</th>
+            <th>% QTY</th>
+          </tr></thead>
+          <tbody>${buildPlanRows(planLeft)}</tbody>
+        </table>
+      </div>
+    </div>
+    <div class="table-card">
+      <div class="table-header"><span>SKU DCC / MINI STO</span></div>
+      <div class="overview-table-wrap">
+        <table class="plan-table">
+          <thead><tr>
+            <th class="col-zone">Zone</th>
+            <th>Status</th>
+            <th>Sloc</th>
+            <th>% Sloc</th>
+            <th>QTY</th>
+            <th>% QTY</th>
+          </tr></thead>
+          <tbody>${buildPlanRows(planRight)}</tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Planogram Accuracy Chart per Zone -->
+  <div class="chart-grid-2">
+    <div class="chart-card">
+      <div class="chart-title">% Sloc Sesuai per Zone — All SKU</div>
+      <div class="chart-wrap" style="height:240px"><canvas id="gr_c4"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">% Sloc Sesuai per Zone — DCC/MINI STO</div>
+      <div class="chart-wrap" style="height:240px"><canvas id="gr_c5"></canvas></div>
+    </div>
   </div>`;
+
+  setTimeout(() => {
+    const mTaskQty  = getMetric('Task grouping planogram (Qty)');
+    const mDoneQty  = getMetric('Completed Task (Qty)');
+    const mPctQty   = getMetric('Precentage Task Completed (Qty %)');
+    const mTaskSloc = getMetric('Task grouping planogram (Sloc)');
+    const mDoneSloc = getMetric('Completed Task (Sloc)');
+    const mPctSloc  = getMetric('Precentage Task Completed (Sloc %)');
+    const mPlano    = getMetric('Daily plano accuracy (%)');
+
+    // Chart 1 — Qty
+    chartInstances['gr_c1'] = new Chart(document.getElementById('gr_c1').getContext('2d'), {
+      data: { labels: filteredDates, datasets: [
+        { type:'bar', label:'Task Qty', data: filteredDates.map(d=>mTaskQty?.daily[d]||0),
+          backgroundColor: COLOR_FC_BG, borderColor: COLOR_FC, borderWidth:2, borderRadius:6, yAxisID:'y',
+          datalabels:{anchor:'end',align:'end',color:COLOR_FC,font:{size:9,weight:'700'},formatter:fmtShort} },
+        { type:'bar', label:'Completed Qty', data: filteredDates.map(d=>mDoneQty?.daily[d]||0),
+          backgroundColor: COLOR_ACT_BG, borderColor: COLOR_ACT, borderWidth:2, borderRadius:6, yAxisID:'y',
+          datalabels:{anchor:'end',align:'end',color:COLOR_ACT,font:{size:9,weight:'700'},formatter:fmtShort} },
+        { type:'line', label:'% Completed', data: filteredDates.map(d=>mPctQty?.daily[d]??null),
+          borderColor: COLOR_PCT, borderWidth:3, pointRadius:5, pointBackgroundColor: COLOR_PCT,
+          tension:0.3, yAxisID:'y2', fill:false,
+          datalabels:{align:'top',color:COLOR_PCT,font:{size:9,weight:'700'},formatter:v=>v!=null?v.toFixed(1)+'%':''} }
+      ]},
+      options: grouperChartOpts()
+    });
+
+    // Chart 2 — Sloc
+    chartInstances['gr_c2'] = new Chart(document.getElementById('gr_c2').getContext('2d'), {
+      data: { labels: filteredDates, datasets: [
+        { type:'bar', label:'Task Sloc', data: filteredDates.map(d=>mTaskSloc?.daily[d]||0),
+          backgroundColor:'#1D9E7566', borderColor:'#1D9E75', borderWidth:2, borderRadius:6, yAxisID:'y',
+          datalabels:{anchor:'end',align:'end',color:'#1D9E75',font:{size:9,weight:'700'},formatter:fmtShort} },
+        { type:'bar', label:'Completed Sloc', data: filteredDates.map(d=>mDoneSloc?.daily[d]||0),
+          backgroundColor:'#378ADD66', borderColor:'#378ADD', borderWidth:2, borderRadius:6, yAxisID:'y',
+          datalabels:{anchor:'end',align:'end',color:'#378ADD',font:{size:9,weight:'700'},formatter:fmtShort} },
+        { type:'line', label:'% Completed', data: filteredDates.map(d=>mPctSloc?.daily[d]??null),
+          borderColor: COLOR_PCT, borderWidth:3, pointRadius:5, pointBackgroundColor: COLOR_PCT,
+          tension:0.3, yAxisID:'y2', fill:false,
+          datalabels:{align:'top',color:COLOR_PCT,font:{size:9,weight:'700'},formatter:v=>v!=null?v.toFixed(1)+'%':''} }
+      ]},
+      options: grouperChartOpts()
+    });
+
+    // Chart 3 — Plano Accuracy line
+    chartInstances['gr_c3'] = new Chart(document.getElementById('gr_c3').getContext('2d'), {
+      type: 'line',
+      data: { labels: filteredDates, datasets: [
+        { label:'Daily Plano Accuracy', data: filteredDates.map(d=>mPlano?.daily[d]??null),
+          borderColor:'#10b981', backgroundColor:'#d1fae5', borderWidth:3,
+          pointRadius:5, pointBackgroundColor:'#10b981', tension:0.3, fill:true,
+          datalabels:{align:'top',color:'#10b981',font:{size:9,weight:'700'},formatter:v=>v!=null?v.toFixed(2)+'%':''} }
+      ]},
+      options:{
+        responsive:true, maintainAspectRatio:false, layout:{padding:{top:20}},
+        plugins:{ legend:{display:false} },
+        scales:{
+          x:{ticks:{color:'#64748b',font:{size:10},maxRotation:45},grid:{color:'#f1f5f9'}},
+          y:{min:70, ticks:{color:'#64748b',font:{size:10},callback:v=>v+'%'},grid:{color:'#f1f5f9'}}
+        }
+      }
+    });
+
+    // Chart 4 — Planogram % Sloc Sesuai per zone (All SKU)
+    const zonesForChart = planLeft.filter(z => z.zone !== 'Total');
+    chartInstances['gr_c4'] = new Chart(document.getElementById('gr_c4').getContext('2d'), {
+      type:'bar',
+      data:{
+        labels: zonesForChart.map(z=>z.zone),
+        datasets:[
+          { label:'% Sloc Sesuai', data: zonesForChart.map(z=>parseFloat((z.pctSlocS*100).toFixed(2))),
+            backgroundColor: zonesForChart.map(z=>{
+              const p = z.pctSlocS*100;
+              return p>=95?'#10b98166':p>=80?'#f59e0b66':'#ef444466';
+            }),
+            borderColor: zonesForChart.map(z=>{
+              const p = z.pctSlocS*100;
+              return p>=95?'#10b981':p>=80?'#f59e0b':'#ef4444';
+            }),
+            borderWidth:2, borderRadius:6,
+            datalabels:{anchor:'end',align:'end',font:{size:10,weight:'700'},
+              color: zonesForChart.map(z=>{const p=z.pctSlocS*100;return p>=95?'#10b981':p>=80?'#f59e0b':'#ef4444';}),
+              formatter:v=>v.toFixed(1)+'%'}
+          }
+        ]
+      },
+      options:{
+        responsive:true, maintainAspectRatio:false, layout:{padding:{top:24}},
+        plugins:{legend:{display:false}},
+        scales:{
+          x:{ticks:{color:'#475569',font:{size:11}},grid:{display:false}},
+          y:{min:0,max:105,ticks:{color:'#64748b',font:{size:10},callback:v=>v+'%'},grid:{color:'#f1f5f9'}}
+        }
+      }
+    });
+
+    // Chart 5 — Planogram % Sloc Sesuai per zone (DCC/MINI STO)
+    const zonesRight = planRight.filter(z => z.zone !== 'Total');
+    chartInstances['gr_c5'] = new Chart(document.getElementById('gr_c5').getContext('2d'), {
+      type:'bar',
+      data:{
+        labels: zonesRight.map(z=>z.zone),
+        datasets:[
+          { label:'% Sloc Sesuai DCC', data: zonesRight.map(z=>parseFloat((z.pctSlocS*100).toFixed(2))),
+            backgroundColor: zonesRight.map(z=>{
+              const p = z.pctSlocS*100;
+              return p>=95?'#8b5cf666':p>=80?'#f59e0b66':'#ef444466';
+            }),
+            borderColor: zonesRight.map(z=>{
+              const p = z.pctSlocS*100;
+              return p>=95?'#8b5cf6':p>=80?'#f59e0b':'#ef4444';
+            }),
+            borderWidth:2, borderRadius:6,
+            datalabels:{anchor:'end',align:'end',font:{size:10,weight:'700'},
+              color: zonesRight.map(z=>{const p=z.pctSlocS*100;return p>=95?'#8b5cf6':p>=80?'#f59e0b':'#ef4444';}),
+              formatter:v=>v.toFixed(1)+'%'}
+          }
+        ]
+      },
+      options:{
+        responsive:true, maintainAspectRatio:false, layout:{padding:{top:24}},
+        plugins:{legend:{display:false}},
+        scales:{
+          x:{ticks:{color:'#475569',font:{size:11}},grid:{display:false}},
+          y:{min:0,max:105,ticks:{color:'#64748b',font:{size:10},callback:v=>v+'%'},grid:{color:'#f1f5f9'}}
+        }
+      }
+    });
+
+  }, 50);
+}
+
+function grouperChartOpts() {
+  return {
+    responsive:true, maintainAspectRatio:false,
+    interaction:{mode:'index',intersect:false}, layout:{padding:{top:24}},
+    plugins:{
+      legend:{labels:{color:'#475569',font:{size:11},boxWidth:12}},
+      tooltip:{callbacks:{label:c=>c.dataset.yAxisID==='y2'?` ${c.dataset.label}: ${c.raw?.toFixed(1)}%`:` ${c.dataset.label}: ${Number(c.raw).toLocaleString('id-ID')}`}}
+    },
+    scales:{
+      x:{ticks:{color:'#64748b',font:{size:10},maxRotation:45},grid:{color:'#f1f5f9'}},
+      y:{position:'left',ticks:{color:'#64748b',font:{size:10},callback:v=>fmtShort(v)},grid:{color:'#f1f5f9'}},
+      y2:{position:'right',min:0,max:120,ticks:{color:COLOR_PCT,font:{size:10},callback:v=>v+'%'},grid:{drawOnChartArea:false}}
+    }
+  };
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -434,7 +841,6 @@ function handleIbFile(file) {
 
 function renderInbound() {
   if (ibActiveTab === 'capacity') { renderCapacityHandler(); return; }
-
   if (!inboundRows) {
     document.getElementById('content').innerHTML = `
     <div style="max-width:520px;margin:40px auto;">
@@ -530,29 +936,22 @@ function renderCapacityHandler() {
 
   const rows = ibCapRows;
   const num = (r, k) => parseFloat(String(r[k]||'0').replace(/,/g,'')) || 0;
-
-  // KPI totals
   const totalPO       = rows.reduce((s,r) => s+num(r,'Total PO'), 0);
   const totalArrived  = rows.reduce((s,r) => s+num(r,'Total PO Arrived'), 0);
   const totalDone     = rows.reduce((s,r) => s+num(r,'Total PO Partially/ Completed'), 0);
   const totalQtyPO    = rows.reduce((s,r) => s+num(r,'Total Qty PO'), 0);
   const totalQtyDone  = rows.reduce((s,r) => s+num(r,'Total Partial/ Completed Qty PO'), 0);
   const totalVendor   = rows.reduce((s,r) => s+num(r,'Total Vendor'), 0);
-  const totalCap      = rows.reduce((s,r) => s+num(r,'Total Capacity'), 0);
-  const frQty         = totalQtyPO > 0 ? Math.round(totalQtyDone/totalQtyPO*100) : 0;
-  const frPO          = totalPO > 0 ? Math.round(totalDone/totalPO*100) : 0;
-  const frCls = frQty>=95?'c-green':frQty>=80?'c-yellow':'c-red';
+  const frQty = totalQtyPO > 0 ? Math.round(totalQtyDone/totalQtyPO*100) : 0;
+  const frPO  = totalPO    > 0 ? Math.round(totalDone/totalPO*100)       : 0;
+  const frCls   = frQty>=95?'c-green':frQty>=80?'c-yellow':'c-red';
   const frPOCls = frPO>=95?'c-green':frPO>=80?'c-yellow':'c-red';
-
-  // Date & slot info
   const date = rows[0]?.['Capacity Handler Date'] || '-';
   const dest = rows[0]?.['destination_name'] || '-';
 
-  // Per-slot table
   const slotRows = rows.map(r => {
     const qtyPO   = num(r,'Total Qty PO');
     const qtyDone = num(r,'Total Partial/ Completed Qty PO');
-    const cap     = num(r,'Total Capacity');
     const frQ     = qtyPO>0 ? Math.round(qtyDone/qtyPO*100) : 0;
     const frQCls  = frQ>=95?'pct-high':frQ>=80?'pct-mid':frQ>0?'pct-low':'zero';
     return `<tr>
@@ -575,7 +974,6 @@ function renderCapacityHandler() {
     <button class="change-file-btn" onclick="document.getElementById('cap-file-change').click()">↑ Ganti File</button>
     <input type="file" id="cap-file-change" accept=".csv" style="display:none" onchange="handleCapacityFile(this.files[0])">
   </div>
-
   <div class="kpi-row">
     <div class="kpi-card"><div class="kl">Total PO</div><div class="kv">${totalPO.toLocaleString('id-ID')}</div><div class="ks">all slots</div></div>
     <div class="kpi-card"><div class="kl">PO Selesai</div><div class="kv c-green">${totalDone.toLocaleString('id-ID')}</div><div class="ks">partial / completed</div></div>
@@ -587,99 +985,58 @@ function renderCapacityHandler() {
     <div class="kpi-card"><div class="kl">Qty Selesai</div><div class="kv c-orange">${totalQtyDone.toLocaleString('id-ID')}</div><div class="ks">partial / completed qty</div></div>
     <div class="kpi-card"><div class="kl">FR% Qty</div><div class="kv ${frCls}">${frQty}%</div><div class="ks">Qty Done / Qty PO</div></div>
   </div>
-
   <div class="chart-grid-2">
-    <div class="chart-card">
-      <div class="chart-title">PO per Slot — Total vs Selesai</div>
-      <div class="chart-wrap" style="height:220px"><canvas id="cap_c1"></canvas></div>
-    </div>
-    <div class="chart-card">
-      <div class="chart-title">Qty per Slot — PO vs Selesai</div>
-      <div class="chart-wrap" style="height:220px"><canvas id="cap_c2"></canvas></div>
-    </div>
+    <div class="chart-card"><div class="chart-title">PO per Slot — Total vs Selesai</div><div class="chart-wrap" style="height:220px"><canvas id="cap_c1"></canvas></div></div>
+    <div class="chart-card"><div class="chart-title">Qty per Slot — PO vs Selesai</div><div class="chart-wrap" style="height:220px"><canvas id="cap_c2"></canvas></div></div>
   </div>
-
   <div class="section-title">📋 Detail per Slot</div>
   <div class="table-card">
     <div class="table-header"><span>Capacity Handler — Per Slot</span><span style="font-size:10px;color:#94a3b8">${rows.length} slots</span></div>
     <div class="overview-table-wrap">
       <table class="overview-table" style="min-width:700px">
-        <thead><tr>
-          <th style="text-align:left">Slot</th>
-          <th>Total PO</th><th>Arrived</th><th>Selesai</th>
-          <th>Vendor</th>
-          <th>Qty PO</th><th>Qty Selesai</th><th>FR% Qty</th>
-        </tr></thead>
+        <thead><tr><th style="text-align:left">Slot</th><th>Total PO</th><th>Arrived</th><th>Selesai</th><th>Vendor</th><th>Qty PO</th><th>Qty Selesai</th><th>FR% Qty</th></tr></thead>
         <tbody>${slotRows}</tbody>
-        <tfoot><tr>
-          <td>TOTAL</td>
-          <td>${totalPO.toLocaleString('id-ID')}</td>
-          <td>${totalArrived.toLocaleString('id-ID')}</td>
-          <td>${totalDone.toLocaleString('id-ID')}</td>
-          <td>${totalVendor.toLocaleString('id-ID')}</td>
-          <td>${totalQtyPO.toLocaleString('id-ID')}</td>
-          <td>${totalQtyDone.toLocaleString('id-ID')}</td>
-          <td class="${frCls}">${frQty}%</td>
-        </tr></tfoot>
+        <tfoot><tr><td>TOTAL</td><td>${totalPO.toLocaleString('id-ID')}</td><td>${totalArrived.toLocaleString('id-ID')}</td><td>${totalDone.toLocaleString('id-ID')}</td><td>${totalVendor.toLocaleString('id-ID')}</td><td>${totalQtyPO.toLocaleString('id-ID')}</td><td>${totalQtyDone.toLocaleString('id-ID')}</td><td class="${frCls}">${frQty}%</td></tr></tfoot>
       </table>
     </div>
   </div>`;
 
   setTimeout(() => {
     const labels = rows.map(r => `Slot ${r['slot name']}`);
-
     new Chart(document.getElementById('cap_c1').getContext('2d'), {
-      type: 'bar',
-      data: { labels, datasets: [
-        { label:'Total PO', data: rows.map(r=>num(r,'Total PO')), backgroundColor:COLOR_FC_BG, borderColor:COLOR_FC, borderWidth:2, borderRadius:6,
-          datalabels:{anchor:'end',align:'end',color:COLOR_FC,font:{size:11,weight:'700'},formatter:fmtShort} },
-        { label:'Selesai', data: rows.map(r=>num(r,'Total PO Partially/ Completed')), backgroundColor:COLOR_ACT_BG, borderColor:COLOR_ACT, borderWidth:2, borderRadius:6,
-          datalabels:{anchor:'end',align:'end',color:COLOR_ACT,font:{size:11,weight:'700'},formatter:fmtShort} },
+      type:'bar', data:{ labels, datasets:[
+        { label:'Total PO', data:rows.map(r=>num(r,'Total PO')), backgroundColor:COLOR_FC_BG, borderColor:COLOR_FC, borderWidth:2, borderRadius:6, datalabels:{anchor:'end',align:'end',color:COLOR_FC,font:{size:11,weight:'700'},formatter:fmtShort} },
+        { label:'Selesai', data:rows.map(r=>num(r,'Total PO Partially/ Completed')), backgroundColor:COLOR_ACT_BG, borderColor:COLOR_ACT, borderWidth:2, borderRadius:6, datalabels:{anchor:'end',align:'end',color:COLOR_ACT,font:{size:11,weight:'700'},formatter:fmtShort} }
       ]},
       options:{ responsive:true, maintainAspectRatio:false, layout:{padding:{top:20}},
-        plugins:{ legend:{labels:{color:'#475569',font:{size:10},boxWidth:12}}, tooltip:{} },
-        scales:{ x:{ticks:{color:'#64748b'},grid:{color:'#f1f5f9'}}, y:{ticks:{color:'#64748b',font:{size:10}},grid:{color:'#f1f5f9'}} }
-      }
+        plugins:{ legend:{labels:{color:'#475569',font:{size:10},boxWidth:12}} },
+        scales:{ x:{ticks:{color:'#64748b'},grid:{color:'#f1f5f9'}}, y:{ticks:{color:'#64748b',font:{size:10}},grid:{color:'#f1f5f9'}} } }
     });
-
     new Chart(document.getElementById('cap_c2').getContext('2d'), {
-      type: 'bar',
-      data: { labels, datasets: [
-        { label:'Qty PO', data: rows.map(r=>num(r,'Total Qty PO')), backgroundColor:COLOR_FC_BG, borderColor:COLOR_FC, borderWidth:2, borderRadius:6,
-          datalabels:{anchor:'end',align:'end',color:COLOR_FC,font:{size:11,weight:'700'},formatter:fmtShort} },
-        { label:'Qty Selesai', data: rows.map(r=>num(r,'Total Partial/ Completed Qty PO')), backgroundColor:COLOR_ACT_BG, borderColor:COLOR_ACT, borderWidth:2, borderRadius:6,
-          datalabels:{anchor:'end',align:'end',color:COLOR_ACT,font:{size:11,weight:'700'},formatter:fmtShort} },
+      type:'bar', data:{ labels, datasets:[
+        { label:'Qty PO', data:rows.map(r=>num(r,'Total Qty PO')), backgroundColor:COLOR_FC_BG, borderColor:COLOR_FC, borderWidth:2, borderRadius:6, datalabels:{anchor:'end',align:'end',color:COLOR_FC,font:{size:11,weight:'700'},formatter:fmtShort} },
+        { label:'Qty Selesai', data:rows.map(r=>num(r,'Total Partial/ Completed Qty PO')), backgroundColor:COLOR_ACT_BG, borderColor:COLOR_ACT, borderWidth:2, borderRadius:6, datalabels:{anchor:'end',align:'end',color:COLOR_ACT,font:{size:11,weight:'700'},formatter:fmtShort} }
       ]},
       options:{ responsive:true, maintainAspectRatio:false, layout:{padding:{top:20}},
-        plugins:{ legend:{labels:{color:'#475569',font:{size:10},boxWidth:12}}, tooltip:{} },
-        scales:{ x:{ticks:{color:'#64748b'},grid:{color:'#f1f5f9'}}, y:{ticks:{color:'#64748b',font:{size:10},callback:v=>fmtShort(v)},grid:{color:'#f1f5f9'}} }
-      }
+        plugins:{ legend:{labels:{color:'#475569',font:{size:10},boxWidth:12}} },
+        scales:{ x:{ticks:{color:'#64748b'},grid:{color:'#f1f5f9'}}, y:{ticks:{color:'#64748b',font:{size:10},callback:v=>fmtShort(v)},grid:{color:'#f1f5f9'}} } }
     });
   }, 50);
 }
-
 
 function renderInboundDashboard() {
   const rows = inboundRows;
   const k    = ibKPI(rows);
   const frCls = k.fr >= 95 ? 'c-green' : k.fr >= 80 ? 'c-yellow' : 'c-red';
-
-  // PO status by unique PO count
   const poStatusMap = {};
   rows.forEach(r => { if (!poStatusMap[r['po_number']]) poStatusMap[r['po_number']] = r['po_status']; });
   const completedCount = Object.values(poStatusMap).filter(s => s==='09.COMPLETED').length;
   const partialCount   = Object.values(poStatusMap).filter(s => s==='08.PARTIALLY_FULFILLED').length;
-
-  // Qty by PO status
   const qtyCompleted = rows.filter(r => r['po_status']==='09.COMPLETED').reduce((s,r) => s+(parseFloat(r['Quantity Received Inbound'])||0),0);
   const qtyPartial   = rows.filter(r => r['po_status']==='08.PARTIALLY_FULFILLED').reduce((s,r) => s+(parseFloat(r['Quantity Received Inbound'])||0),0);
-
-  // Top 10 vendors
   const vendorMap = {};
   rows.forEach(r => { vendorMap[r['vendor_name']] = (vendorMap[r['vendor_name']]||0) + (parseFloat(r['Quantity Received Inbound'])||0); });
   const topVendors = Object.entries(vendorMap).sort((a,b)=>b[1]-a[1]).slice(0,10);
-
-  // Top 10 L1 categories
   const l1Map = {}; const l1QtyMap = {};
   rows.forEach(r => {
     const cat = r['L1_category'];
@@ -687,12 +1044,9 @@ function renderInboundDashboard() {
     l1QtyMap[cat] = (l1QtyMap[cat]||0) + (parseFloat(r['Quantity Received Inbound'])||0);
   });
   const topL1 = Object.entries(l1Map).sort((a,b)=>b[1]-a[1]).slice(0,10);
-
-  // Checker performance
   const checkerMap = {};
   rows.forEach(r => {
-    const name = r['checker_name'];
-    if (!name) return;
+    const name = r['checker_name']; if (!name) return;
     if (!checkerMap[name]) checkerMap[name] = { arrRcv:[], rcvDur:[], grnPut:[] };
     const a = parseFloat(r['Arrival to Receiving Duration, Minutes']);
     const b = parseFloat(r['Receiving Duration, Minutes']);
@@ -718,28 +1072,12 @@ function renderInboundDashboard() {
     <div class="kpi-card"><div class="kl">Qty Received</div><div class="kv c-blue">${k.qtyRcv.toLocaleString('id-ID')}</div><div class="ks">actual received</div></div>
     <div class="kpi-card"><div class="kl">FR%</div><div class="kv ${frCls}">${k.fr}%</div><div class="ks">Qty Received / Qty PO</div></div>
   </div>
-
   <div class="chart-grid-2">
-    <div class="chart-card">
-      <div class="chart-title">PO status — jumlah PO</div>
-      <div class="chart-wrap" style="height:200px"><canvas id="ib_c1" role="img" aria-label="Donut PO status"></canvas></div>
-    </div>
-    <div class="chart-card">
-      <div class="chart-title">Qty received — per status PO</div>
-      <div class="chart-wrap" style="height:200px"><canvas id="ib_c2" role="img" aria-label="Pie qty by status"></canvas></div>
-    </div>
+    <div class="chart-card"><div class="chart-title">PO status — jumlah PO</div><div class="chart-wrap" style="height:200px"><canvas id="ib_c1"></canvas></div></div>
+    <div class="chart-card"><div class="chart-title">Qty received — per status PO</div><div class="chart-wrap" style="height:200px"><canvas id="ib_c2"></canvas></div></div>
   </div>
-
-  <div class="chart-card">
-    <div class="chart-title">Top 10 vendors — qty received</div>
-    <div class="chart-wrap" style="height:${topVendors.length*38+60}px"><canvas id="ib_c3" role="img" aria-label="Vendor bar chart"></canvas></div>
-  </div>
-
-  <div class="chart-card">
-    <div class="chart-title">Top 10 L1 categories — jumlah item</div>
-    <div class="chart-wrap" style="height:260px"><canvas id="ib_c4" role="img" aria-label="L1 category bar chart"></canvas></div>
-  </div>
-
+  <div class="chart-card"><div class="chart-title">Top 10 vendors — qty received</div><div class="chart-wrap" style="height:${topVendors.length*38+60}px"><canvas id="ib_c3"></canvas></div></div>
+  <div class="chart-card"><div class="chart-title">Top 10 L1 categories — jumlah item</div><div class="chart-wrap" style="height:260px"><canvas id="ib_c4"></canvas></div></div>
   <div class="chart-card">
     <div class="chart-title">Checker performance — rata-rata durasi (menit)</div>
     <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:10px;font-size:10px;color:#64748b;">
@@ -747,13 +1085,11 @@ function renderInboundDashboard() {
       <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#1D9E75;margin-right:4px;"></span>Receiving</span>
       <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#EF9F27;margin-right:4px;"></span>GRN→Putaway</span>
     </div>
-    <div class="chart-wrap" style="height:${checkerNames.length*50+80}px"><canvas id="ib_c5" role="img" aria-label="Checker performance"></canvas></div>
+    <div class="chart-wrap" style="height:${checkerNames.length*50+80}px"><canvas id="ib_c5"></canvas></div>
   </div>
-
   <div class="section-title">📋 Raw Data</div>
   <div class="table-card">
-    <div class="table-header">
-      <span>Semua Data Inbound</span>
+    <div class="table-header"><span>Semua Data Inbound</span>
       <div style="display:flex;gap:8px;align-items:center;">
         <span class="ib-row-count" id="ib-row-count">${rows.length} rows</span>
         <button class="ib-reset-btn" onclick="resetIbFilters()">Reset Filter</button>
@@ -770,89 +1106,44 @@ function renderInboundDashboard() {
     </div>
   </div>`;
 
-  // ── Build charts ──
   setTimeout(() => {
-    // Donut PO status
     new Chart(document.getElementById('ib_c1').getContext('2d'), {
-      type: 'doughnut',
-      data: { labels: ['Completed','Partially Fulfilled'], datasets: [{ data: [completedCount, partialCount], backgroundColor: ['#1D9E75','#EF9F27'], borderWidth: 0 }] },
-      options: { responsive:true, maintainAspectRatio:false, cutout:'62%',
-        plugins: { legend:{ position:'bottom', labels:{ color:'#475569', font:{size:11}, boxWidth:12 } },
-          datalabels:{ color:'#fff', font:{size:12,weight:'700'}, formatter: v => v } } }
+      type:'doughnut',
+      data:{ labels:['Completed','Partially Fulfilled'], datasets:[{ data:[completedCount,partialCount], backgroundColor:['#1D9E75','#EF9F27'], borderWidth:0 }] },
+      options:{ responsive:true, maintainAspectRatio:false, cutout:'62%',
+        plugins:{ legend:{position:'bottom',labels:{color:'#475569',font:{size:11},boxWidth:12}}, datalabels:{color:'#fff',font:{size:12,weight:'700'},formatter:v=>v} } }
     });
-
-    // Pie qty by status
     new Chart(document.getElementById('ib_c2').getContext('2d'), {
-      type: 'doughnut',
-      data: { labels: ['Completed','Partially Fulfilled'], datasets: [{ data: [Math.round(qtyCompleted), Math.round(qtyPartial)], backgroundColor: ['#378ADD','#D85A30'], borderWidth: 0 }] },
-      options: { responsive:true, maintainAspectRatio:false, cutout:'62%',
-        plugins: { legend:{ position:'bottom', labels:{ color:'#475569', font:{size:11}, boxWidth:12 } },
-          datalabels:{ color:'#fff', font:{size:10,weight:'700'}, formatter: v => v >= 1000 ? (v/1000).toFixed(1)+'k' : v } } }
+      type:'doughnut',
+      data:{ labels:['Completed','Partially Fulfilled'], datasets:[{ data:[Math.round(qtyCompleted),Math.round(qtyPartial)], backgroundColor:['#378ADD','#D85A30'], borderWidth:0 }] },
+      options:{ responsive:true, maintainAspectRatio:false, cutout:'62%',
+        plugins:{ legend:{position:'bottom',labels:{color:'#475569',font:{size:11},boxWidth:12}}, datalabels:{color:'#fff',font:{size:10,weight:'700'},formatter:v=>v>=1000?(v/1000).toFixed(1)+'k':v} } }
     });
-
-    // Vendors horizontal bar
     new Chart(document.getElementById('ib_c3').getContext('2d'), {
-      type: 'bar',
-      data: {
-        labels: topVendors.map(v => v[0].length > 28 ? v[0].slice(0,28)+'…' : v[0]),
-        datasets: [{ data: topVendors.map(v => Math.round(v[1])), backgroundColor: '#378ADD', borderRadius: 3 }]
-      },
-      options: { responsive:true, maintainAspectRatio:false, indexAxis:'y',
-        plugins: { legend:{display:false},
-          datalabels:{ anchor:'end', align:'right', color:'#378ADD', font:{size:10,weight:'700'}, formatter:v => v.toLocaleString('id-ID') } },
-        scales: {
-          x: { ticks:{color:'#94a3b8',font:{size:10}}, grid:{color:'#f1f5f9'} },
-          y: { ticks:{color:'#475569',font:{size:10}}, grid:{display:false} }
-        }
-      }
+      type:'bar',
+      data:{ labels:topVendors.map(v=>v[0].length>28?v[0].slice(0,28)+'…':v[0]), datasets:[{ data:topVendors.map(v=>Math.round(v[1])), backgroundColor:'#378ADD', borderRadius:3, datalabels:{anchor:'end',align:'right',color:'#378ADD',font:{size:10,weight:'700'},formatter:v=>v.toLocaleString('id-ID')} }] },
+      options:{ responsive:true, maintainAspectRatio:false, indexAxis:'y', plugins:{legend:{display:false}},
+        scales:{ x:{ticks:{color:'#94a3b8',font:{size:10}},grid:{color:'#f1f5f9'}}, y:{ticks:{color:'#475569',font:{size:10}},grid:{display:false}} } }
     });
-
-    // L1 bar
     new Chart(document.getElementById('ib_c4').getContext('2d'), {
-      type: 'bar',
-      data: {
-        labels: topL1.map(v => v[0]),
-        datasets: [{ data: topL1.map(v => v[1]), backgroundColor: '#7F77DD', borderRadius: 3 }]
-      },
-      options: { responsive:true, maintainAspectRatio:false,
-        plugins: { legend:{display:false},
-          datalabels:{ anchor:'end', align:'end', color:'#7F77DD', font:{size:9,weight:'700'},
-            formatter:(v, ctx) => {
-              const cat = topL1[ctx.dataIndex][0];
-              const qty = Math.round(l1QtyMap[cat]||0);
-              return v + ' items | ' + qty.toLocaleString('id-ID') + ' qty';
-            } } },
-        scales: {
-          x: { ticks:{color:'#475569',font:{size:10},maxRotation:35}, grid:{display:false} },
-          y: { ticks:{color:'#94a3b8',font:{size:10}}, grid:{color:'#f1f5f9'} }
-        }
-      }
+      type:'bar',
+      data:{ labels:topL1.map(v=>v[0]), datasets:[{ data:topL1.map(v=>v[1]), backgroundColor:'#7F77DD', borderRadius:3,
+        datalabels:{anchor:'end',align:'end',color:'#7F77DD',font:{size:9,weight:'700'},formatter:(v,ctx)=>{ const cat=topL1[ctx.dataIndex][0]; const qty=Math.round(l1QtyMap[cat]||0); return v+' items | '+qty.toLocaleString('id-ID')+' qty'; }} }] },
+      options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}},
+        scales:{ x:{ticks:{color:'#475569',font:{size:10},maxRotation:35},grid:{display:false}}, y:{ticks:{color:'#94a3b8',font:{size:10}},grid:{color:'#f1f5f9'}} } }
     });
-
-    // Checker grouped bar
     new Chart(document.getElementById('ib_c5').getContext('2d'), {
-      type: 'bar',
-      data: {
-        labels: checkerNames,
-        datasets: [
-          { label:'Arrival→Receiving', data: checkerNames.map(n => avg(checkerMap[n].arrRcv)), backgroundColor:'#378ADD', borderRadius:3 },
-          { label:'Receiving',         data: checkerNames.map(n => avg(checkerMap[n].rcvDur)), backgroundColor:'#1D9E75', borderRadius:3 },
-          { label:'GRN→Putaway',       data: checkerNames.map(n => avg(checkerMap[n].grnPut)), backgroundColor:'#EF9F27', borderRadius:3 }
-        ]
-      },
-      options: { responsive:true, maintainAspectRatio:false, indexAxis:'y',
-        plugins: { legend:{display:false},
-          datalabels:{ anchor:'end', align:'right', font:{size:9,weight:'700'}, formatter: v => v != null ? v+' mnt' : '', color: ctx => ['#378ADD','#1D9E75','#EF9F27'][ctx.datasetIndex] } },
-        scales: {
-          x: { ticks:{color:'#94a3b8',font:{size:10}}, grid:{color:'#f1f5f9'} },
-          y: { ticks:{color:'#475569',font:{size:10}}, grid:{display:false} }
-        }
-      }
+      type:'bar',
+      data:{ labels:checkerNames, datasets:[
+        { label:'Arrival→Receiving', data:checkerNames.map(n=>avg(checkerMap[n].arrRcv)), backgroundColor:'#378ADD', borderRadius:3 },
+        { label:'Receiving',         data:checkerNames.map(n=>avg(checkerMap[n].rcvDur)), backgroundColor:'#1D9E75', borderRadius:3 },
+        { label:'GRN→Putaway',       data:checkerNames.map(n=>avg(checkerMap[n].grnPut)), backgroundColor:'#EF9F27', borderRadius:3 }
+      ]},
+      options:{ responsive:true, maintainAspectRatio:false, indexAxis:'y',
+        plugins:{ legend:{display:false}, datalabels:{anchor:'end',align:'right',font:{size:9,weight:'700'},formatter:(v,ctx)=>v!=null?v+' mnt':'',color:ctx=>['#378ADD','#1D9E75','#EF9F27'][ctx.datasetIndex]} },
+        scales:{ x:{ticks:{color:'#94a3b8',font:{size:10}},grid:{color:'#f1f5f9'}}, y:{ticks:{color:'#475569',font:{size:10}},grid:{display:false}} } }
     });
-
-    // ── Build raw table ──
     buildIbTable(rows);
-
   }, 50);
 }
 
@@ -861,17 +1152,10 @@ function buildIbTable(rows) {
   const thLabels  = document.getElementById('ib-th-labels');
   const thFilters = document.getElementById('ib-th-filters');
   const tbody     = document.getElementById('ib-tbody');
-
-  // Header labels
   thLabels.innerHTML = headers.map(h => `<th title="${h}">${h.length > 20 ? h.slice(0,20)+'…' : h}</th>`).join('');
-
-  // Filter inputs
   thFilters.innerHTML = headers.map((h,i) => `<th><input type="text" placeholder="filter…" data-col="${i}" oninput="applyIbFilter(this, ${i})"></th>`).join('');
-
-  // Tbody
   const STATUS_COLORS = { '09.COMPLETED':'badge badge-green', '08.PARTIALLY_FULFILLED':'badge badge-yellow' };
   const LATE_COLORS   = { 'Late':'badge badge-red', 'Early':'badge badge-green', 'ESLA':'badge badge-red' };
-
   tbody.innerHTML = rows.map((row,ri) => {
     const cells = headers.map(h => {
       let val = row[h] || '';
@@ -913,23 +1197,8 @@ function resetIbFilters() {
 // ══════════════════════════════════════════════════════════════════════════════
 
 const TS_SECTIONS = {
-  reguler: {
-    name: 'Task Troubleshoot Reguler',
-    metrics: ['Task Troubleshoot Reguler','Actual Fullfill','Troubleshoot FR %','Pick to Lost','Pick to Lost %','Actual MP (Troubleshoot)'],
-    fcLabel: 'Task Troubleshoot Reguler',
-    actLabel: 'Actual Fullfill',
-    pctLabel: 'Troubleshoot FR %',
-    color: '#378ADD'
-  },
-  bti: {
-    name: 'BTI',
-    metrics: ['Daily In Items BTI','Daily Out Items BTI','LDP to Available','Adjustin','Fullfill Stock','Fullfill Order','Total Task','Actual MP (BTI)','Qty/MP'],
-    fcLabel: 'Total Task',
-    actLabel: 'Daily Out Items BTI',
-    pctLabel: null,
-    lineLabel: 'Qty/MP',
-    color: '#1D9E75'
-  }
+  reguler: { name:'Task Troubleshoot Reguler', metrics:['Task Troubleshoot Reguler','Actual Fullfill','Troubleshoot FR %','Pick to Lost','Pick to Lost %','Actual MP (Troubleshoot)'], fcLabel:'Task Troubleshoot Reguler', actLabel:'Actual Fullfill', pctLabel:'Troubleshoot FR %', color:'#378ADD' },
+  bti: { name:'BTI', metrics:['Daily In Items BTI','Daily Out Items BTI','LDP to Available','Adjustin','Fullfill Stock','Fullfill Order','Total Task','Actual MP (BTI)','Qty/MP'], fcLabel:'Total Task', actLabel:'Daily Out Items BTI', pctLabel:null, lineLabel:'Qty/MP', color:'#1D9E75' }
 };
 
 function tsParseDates(dates) {
@@ -949,170 +1218,46 @@ function tsParseDates(dates) {
 async function ensureTsData() {
   if (!globalTroubleshoot) {
     document.getElementById('content').innerHTML = '<div class="loading">Loading troubleshoot<span class="dot">.</span><span class="dot">.</span><span class="dot">.</span></div>';
-    try {
-      globalTroubleshoot = await fetch('/api/troubleshoot').then(r => r.json());
-    } catch(e) {
-      document.getElementById('content').innerHTML = `<div class="loading">Error: ${e.message}</div>`;
-      return false;
-    }
+    try { globalTroubleshoot = await fetch('/api/troubleshoot').then(r => r.json()); }
+    catch(e) { document.getElementById('content').innerHTML = `<div class="loading">Error: ${e.message}</div>`; return false; }
   }
   return true;
-}
-
-function renderTsOverview() {
-  ensureTsData().then(ok => {
-    if (!ok) return;
-    const { dates, metrics } = globalTroubleshoot;
-    const filteredDates = tsParseDates(dates);
-
-    const getMetric = label => metrics.find(m => m.label === label);
-    const sumD = (label) => {
-      const m = getMetric(label);
-      return m ? filteredDates.reduce((s,d) => s+(m.daily[d]||0), 0) : 0;
-    };
-
-    // Reguler KPI
-    const rTask = Math.round(sumD('Task Troubleshoot Reguler'));
-    const rAct  = Math.round(sumD('Actual Fullfill'));
-    const rFR   = rTask > 0 ? Math.round(rAct/rTask*100) : 0;
-    const rFRCls = rFR>=95?'c-green':rFR>=80?'c-yellow':rFR>0?'c-red':'';
-
-    // BTI KPI
-    const btiIn  = Math.round(sumD('Daily In Items BTI'));
-    const btiOut = Math.round(sumD('Daily Out Items BTI'));
-    const btiTotal = Math.round(sumD('Total Task'));
-
-    const cards = `
-    <div class="kpi-card" style="cursor:pointer" onclick="navigate('ts-reguler')">
-      <div class="kl">Task Reguler</div>
-      <div class="kv ${rFRCls}" style="font-size:26px">${rFR?rFR+'%':'-'}</div>
-      <div style="height:4px;background:#f1f5f9;border-radius:999px;margin:8px 0;overflow:hidden">
-        <div style="height:100%;width:${Math.min(rFR,100)}%;border-radius:999px;background:${rFR>=95?'#10b981':rFR>=80?'#f59e0b':'#ef4444'}"></div>
-      </div>
-      <div style="display:flex;justify-content:space-between;margin-top:6px">
-        <div><div style="font-size:11px;font-weight:700;color:${COLOR_FC}">${rTask.toLocaleString('id-ID')}</div><div class="ks">Task</div></div>
-        <div><div style="font-size:11px;font-weight:700;color:${COLOR_ACT}">${rAct.toLocaleString('id-ID')}</div><div class="ks">Actual</div></div>
-      </div>
-    </div>
-    <div class="kpi-card" style="cursor:pointer" onclick="navigate('ts-bti')">
-      <div class="kl">BTI</div>
-      <div class="kv" style="font-size:26px">${btiTotal.toLocaleString('id-ID')}</div>
-      <div style="height:4px;background:#f1f5f9;border-radius:999px;margin:8px 0;overflow:hidden">
-        <div style="height:100%;width:60%;border-radius:999px;background:#1D9E75"></div>
-      </div>
-      <div style="display:flex;justify-content:space-between;margin-top:6px">
-        <div><div style="font-size:11px;font-weight:700;color:#1D9E75">${btiIn.toLocaleString('id-ID')}</div><div class="ks">In Items</div></div>
-        <div><div style="font-size:11px;font-weight:700;color:${COLOR_ACT}">${btiOut.toLocaleString('id-ID')}</div><div class="ks">Out Items</div></div>
-      </div>
-    </div>`;
-
-    document.getElementById('content').innerHTML = `
-    ${dateRangeBadge()}
-    <div class="section-title">📈 Achievement per Section</div>
-    <div class="kpi-row" style="grid-template-columns:repeat(2,1fr)">${cards}</div>
-    <div class="chart-grid-2">
-      <div class="chart-card">
-        <div class="chart-title">Task Reguler — Task vs Actual per hari</div>
-        <div class="chart-wrap" style="height:240px"><canvas id="ts_ov_reguler"></canvas></div>
-      </div>
-      <div class="chart-card">
-        <div class="chart-title">BTI — In vs Out Items per hari</div>
-        <div class="chart-wrap" style="height:240px"><canvas id="ts_ov_bti"></canvas></div>
-      </div>
-    </div>`;
-
-    setTimeout(() => {
-      const mTask = getMetric('Task Troubleshoot Reguler');
-      const mAct  = getMetric('Actual Fullfill');
-      const mFR   = getMetric('Troubleshoot FR %');
-      const mIn   = getMetric('Daily In Items BTI');
-      const mOut  = getMetric('Daily Out Items BTI');
-
-      new Chart(document.getElementById('ts_ov_reguler').getContext('2d'), {
-        data: { labels: filteredDates, datasets: [
-          { type:'bar', label:'Task', data: filteredDates.map(d=>mTask?.daily[d]||0), backgroundColor:COLOR_FC_BG, borderColor:COLOR_FC, borderWidth:2, borderRadius:6, yAxisID:'y',
-            datalabels:{anchor:'end',align:'end',color:COLOR_FC,font:{size:10,weight:'700'},formatter:fmtShort} },
-          { type:'bar', label:'Actual Fullfill', data: filteredDates.map(d=>mAct?.daily[d]||0), backgroundColor:COLOR_ACT_BG, borderColor:COLOR_ACT, borderWidth:2, borderRadius:6, yAxisID:'y',
-            datalabels:{anchor:'end',align:'end',color:COLOR_ACT,font:{size:10,weight:'700'},formatter:fmtShort} },
-          { type:'line', label:'FR%', data: filteredDates.map(d=>mFR?.daily[d]??null), borderColor:COLOR_PCT, backgroundColor:'#fef3c7', borderWidth:3, pointRadius:6, pointBackgroundColor:COLOR_PCT, tension:0.3, yAxisID:'y2', fill:false,
-            datalabels:{align:'top',color:COLOR_PCT,font:{size:10,weight:'700'},formatter:v=>v!=null?v.toFixed(1)+'%':''} }
-        ]},
-        options: tsChartOpts()
-      });
-
-      new Chart(document.getElementById('ts_ov_bti').getContext('2d'), {
-        data: { labels: filteredDates, datasets: [
-          { type:'bar', label:'In Items', data: filteredDates.map(d=>mIn?.daily[d]||0), backgroundColor:'#1D9E7566', borderColor:'#1D9E75', borderWidth:2, borderRadius:6, yAxisID:'y',
-            datalabels:{anchor:'end',align:'end',color:'#1D9E75',font:{size:10,weight:'700'},formatter:fmtShort} },
-          { type:'bar', label:'Out Items', data: filteredDates.map(d=>mOut?.daily[d]||0), backgroundColor:COLOR_ACT_BG, borderColor:COLOR_ACT, borderWidth:2, borderRadius:6, yAxisID:'y',
-            datalabels:{anchor:'end',align:'end',color:COLOR_ACT,font:{size:10,weight:'700'},formatter:fmtShort} },
-        ]},
-        options: tsChartOpts(false)
-      });
-    }, 50);
-  });
 }
 
 function tsChartOpts(hasPct=true) {
   return {
     responsive:true, maintainAspectRatio:false, interaction:{mode:'index',intersect:false}, layout:{padding:{top:24}},
-    plugins:{
-      legend:{labels:{color:'#475569',font:{size:11},boxWidth:14}},
-      tooltip:{callbacks:{label:c=>c.dataset.yAxisID==='y2'?` ${c.dataset.label}: ${c.raw}%`:` ${c.dataset.label}: ${Number(c.raw).toLocaleString('id-ID')}`}}
-    },
-    scales:{
-      x:{ticks:{color:'#64748b',font:{size:11}},grid:{color:'#f1f5f9'}},
+    plugins:{ legend:{labels:{color:'#475569',font:{size:11},boxWidth:14}},
+      tooltip:{callbacks:{label:c=>c.dataset.yAxisID==='y2'?` ${c.dataset.label}: ${c.raw}%`:` ${c.dataset.label}: ${Number(c.raw).toLocaleString('id-ID')}`}} },
+    scales:{ x:{ticks:{color:'#64748b',font:{size:11}},grid:{color:'#f1f5f9'}},
       y:{position:'left',ticks:{color:'#64748b',font:{size:10},callback:v=>Number(v).toLocaleString('id-ID')},grid:{color:'#f1f5f9'}},
-      ...(hasPct ? {y2:{position:'right',min:0,max:130,ticks:{color:COLOR_PCT,font:{size:10},callback:v=>v+'%'},grid:{drawOnChartArea:false}}} : {})
-    }
+      ...(hasPct ? {y2:{position:'right',min:0,max:130,ticks:{color:COLOR_PCT,font:{size:10},callback:v=>v+'%'},grid:{drawOnChartArea:false}}} : {}) }
   };
 }
 
 async function renderTsSection(sectionKey) {
-  const ok = await ensureTsData();
-  if (!ok) return;
-
+  const ok = await ensureTsData(); if (!ok) return;
   const { dates, metrics } = globalTroubleshoot;
   const sec = TS_SECTIONS[sectionKey];
   const filteredDates = tsParseDates(dates);
-
   const getMetric = label => metrics.find(m => m.label === label);
   const secMetrics = sec.metrics.map(label => getMetric(label)).filter(Boolean);
-
-  const fcMetric  = getMetric(sec.fcLabel);
-  const actMetric = getMetric(sec.actLabel);
-  const pctMetric = sec.pctLabel ? getMetric(sec.pctLabel) : null;
-  const lineMetric= sec.lineLabel ? getMetric(sec.lineLabel) : pctMetric;
-
+  const fcMetric   = getMetric(sec.fcLabel);
+  const actMetric  = getMetric(sec.actLabel);
+  const pctMetric  = sec.pctLabel ? getMetric(sec.pctLabel) : null;
+  const lineMetric = sec.lineLabel ? getMetric(sec.lineLabel) : pctMetric;
   const sumD = m => m ? filteredDates.reduce((s,d)=>s+(m.daily[d]||0),0) : 0;
   const totalFC  = Math.round(sumD(fcMetric));
   const totalAct = Math.round(sumD(actMetric));
-  const avgLine  = lineMetric ? (() => {
-    const vals = filteredDates.map(d=>lineMetric.daily[d]).filter(v=>v!=null&&v>0);
-    return vals.length ? Math.round(vals.reduce((s,v)=>s+v,0)/vals.length*10)/10 : 0;
-  })() : 0;
+  const avgLine  = lineMetric ? (() => { const vals=filteredDates.map(d=>lineMetric.daily[d]).filter(v=>v!=null&&v>0); return vals.length?Math.round(vals.reduce((s,v)=>s+v,0)/vals.length*10)/10:0; })() : 0;
   const fr = totalFC > 0 ? Math.round(totalAct/totalFC*100) : 0;
   const frCls = fr>=95?'c-green':fr>=80?'c-yellow':fr>0?'c-red':'';
-
-  // Table rows — all metrics
   const dateHeaders = filteredDates.map(d=>`<th>${d}</th>`).join('');
-  const tableRows = secMetrics.map(m => {
-    const cells = filteredDates.map(d => {
-      const v = m.daily[d];
-      if (v===null||v===undefined) return '<td><span class="zero">-</span></td>';
-      if (m.isPct) {
-        const cls = v>=95?'pct-high':v>=80?'pct-mid':v>0?'pct-low':'zero';
-        return `<td class="${cls}">${typeof v==='number'?v.toFixed(1)+'%':v}</td>`;
-      }
-      return `<td>${v>0?Number(v).toLocaleString('id-ID'):'<span class="zero">-</span>'}</td>`;
-    }).join('');
-    return `<tr><td>${m.label}</td>${cells}</tr>`;
-  }).join('');
 
   document.getElementById('content').innerHTML = `
   ${dateRangeBadge()}
   <div class="section-page-header"><h2>${sec.name}</h2></div>
-  ${sectionKey === 'bti' ? `
+  ${sectionKey==='bti'?`
   <div class="kpi-row">
     <div class="kpi-card"><div class="kl">Total Task</div><div class="kv">${totalFC.toLocaleString('id-ID')}</div><div class="ks">total</div></div>
     <div class="kpi-card"><div class="kl">Daily Out Items BTI</div><div class="kv c-orange">${totalAct.toLocaleString('id-ID')}</div><div class="ks">total</div></div>
@@ -1124,7 +1269,7 @@ async function renderTsSection(sectionKey) {
     <div class="kpi-card"><div class="kl">LDP to Available</div><div class="kv c-green">${Math.round(sumD(getMetric('LDP to Available'))).toLocaleString('id-ID')}</div><div class="ks">total</div></div>
     <div class="kpi-card"><div class="kl">Fullfill Stock</div><div class="kv c-purple">${Math.round(sumD(getMetric('Fullfill Stock'))).toLocaleString('id-ID')}</div><div class="ks">total</div></div>
     <div class="kpi-card"><div class="kl">Fullfill Order</div><div class="kv c-yellow">${Math.round(sumD(getMetric('Fullfill Order'))).toLocaleString('id-ID')}</div><div class="ks">total</div></div>
-  </div>` : sectionKey === 'reguler' ? `
+  </div>`:sectionKey==='reguler'?`
   <div class="kpi-row">
     <div class="kpi-card"><div class="kl">Task Troubleshoot</div><div class="kv">${totalFC.toLocaleString('id-ID')}</div><div class="ks">total task</div></div>
     <div class="kpi-card"><div class="kl">Actual Fullfill</div><div class="kv c-orange">${totalAct.toLocaleString('id-ID')}</div><div class="ks">total actual</div></div>
@@ -1133,14 +1278,8 @@ async function renderTsSection(sectionKey) {
   </div>
   <div class="kpi-row" style="grid-template-columns:repeat(2,1fr)">
     <div class="kpi-card"><div class="kl">Pick to Lost</div><div class="kv c-red">${Math.round(sumD(getMetric('Pick to Lost'))).toLocaleString('id-ID')}</div><div class="ks">total</div></div>
-    <div class="kpi-card"><div class="kl">Pick to Lost %</div><div class="kv c-red">${(() => { const m = getMetric('Pick to Lost %'); const vals = filteredDates.map(d=>m?.daily[d]).filter(v=>v!=null&&v>0); return vals.length ? (vals.reduce((s,v)=>s+v,0)/vals.length).toFixed(1)+'%' : '-'; })()}</div><div class="ks">rata-rata harian</div></div>
-  </div>` : `
-  <div class="kpi-row">
-    <div class="kpi-card"><div class="kl">${sec.fcLabel}</div><div class="kv">${totalFC.toLocaleString('id-ID')}</div><div class="ks">total</div></div>
-    <div class="kpi-card"><div class="kl">${sec.actLabel}</div><div class="kv c-orange">${totalAct.toLocaleString('id-ID')}</div><div class="ks">total</div></div>
-    ${sec.pctLabel ? `<div class="kpi-card"><div class="kl">FR%</div><div class="kv ${frCls}">${fr?fr+'%':'-'}</div><div class="ks">achievement</div></div>` : ''}
-    ${sec.lineLabel ? `<div class="kpi-card"><div class="kl">Avg Qty/MP</div><div class="kv c-blue">${avgLine?avgLine.toLocaleString('id-ID'):'-'}</div><div class="ks">rata-rata harian</div></div>` : ''}
-  </div>`}
+    <div class="kpi-card"><div class="kl">Pick to Lost %</div><div class="kv c-red">${(()=>{const m=getMetric('Pick to Lost %');const vals=filteredDates.map(d=>m?.daily[d]).filter(v=>v!=null&&v>0);return vals.length?(vals.reduce((s,v)=>s+v,0)/vals.length).toFixed(1)+'%':'-';})()}</div><div class="ks">rata-rata harian</div></div>
+  </div>`:``}
   <div class="chart-card">
     <div class="chart-title">${sec.name} — per hari</div>
     <div class="chart-wrap" style="height:280px"><canvas id="ts_sec_chart"></canvas></div>
@@ -1149,122 +1288,68 @@ async function renderTsSection(sectionKey) {
   <div class="table-card">
     <div class="table-header"><span>${sec.name} — Daily Detail</span><span style="font-size:10px;color:#94a3b8">${filteredDates.length} hari · scroll →</span></div>
     <div class="table-container">
-      <div class="frozen-left">
-        <table><thead><tr><th>Metric</th></tr></thead>
-          <tbody>${secMetrics.map(m=>`<tr><td>${m.label}</td></tr>`).join('')}</tbody>
-        </table>
-      </div>
-      <div class="scroll-right">
-        <table><thead><tr>${dateHeaders}</tr></thead>
-          <tbody>${secMetrics.map(m => {
-            const cells = filteredDates.map(d => {
-              const v = m.daily[d];
-              if (v===null||v===undefined) return `<td><span class="zero">-</span></td>`;
-              if (m.isPct) {
-                const cls = v>=95?'pct-high':v>=80?'pct-mid':v>0?'pct-low':'zero';
-                return `<td class="${cls}">${v.toFixed(1)}%</td>`;
-              }
-              return `<td class="${v>0?'':'zero'}">${v>0?Number(v).toLocaleString('id-ID'):'-'}</td>`;
-            }).join('');
-            return `<tr>${cells}</tr>`;
-          }).join('')}</tbody>
-        </table>
-      </div>
+      <div class="frozen-left"><table><thead><tr><th>Metric</th></tr></thead><tbody>${secMetrics.map(m=>`<tr><td>${m.label}</td></tr>`).join('')}</tbody></table></div>
+      <div class="scroll-right"><table><thead><tr>${dateHeaders}</tr></thead>
+        <tbody>${secMetrics.map(m=>{
+          const cells=filteredDates.map(d=>{const v=m.daily[d];if(v===null||v===undefined)return`<td><span class="zero">-</span></td>`;if(m.isPct){const cls=v>=95?'pct-high':v>=80?'pct-mid':v>0?'pct-low':'zero';return`<td class="${cls}">${v.toFixed(1)}%</td>`;}return`<td class="${v>0?'':'zero'}">${v>0?Number(v).toLocaleString('id-ID'):'-'}</td>`;}).join('');
+          return`<tr>${cells}</tr>`;}).join('')}
+        </tbody>
+      </table></div>
     </div>
   </div>`;
 
   setTimeout(() => {
-    const ctx = document.getElementById('ts_sec_chart');
-    if (!ctx) return;
+    const ctx = document.getElementById('ts_sec_chart'); if (!ctx) return;
     const datasets = [
-      { type:'bar', label: sec.fcLabel, data: filteredDates.map(d=>fcMetric?.daily[d]||0), backgroundColor:COLOR_FC_BG, borderColor:COLOR_FC, borderWidth:2, borderRadius:6, yAxisID:'y',
-        datalabels:{anchor:'end',align:'end',color:COLOR_FC,font:{size:10,weight:'700'},formatter:fmtShort} },
-      { type:'bar', label: sec.actLabel, data: filteredDates.map(d=>actMetric?.daily[d]||0), backgroundColor:COLOR_ACT_BG, borderColor:COLOR_ACT, borderWidth:2, borderRadius:6, yAxisID:'y',
-        datalabels:{anchor:'end',align:'end',color:COLOR_ACT,font:{size:10,weight:'700'},formatter:fmtShort} },
+      { type:'bar', label:sec.fcLabel, data:filteredDates.map(d=>fcMetric?.daily[d]||0), backgroundColor:COLOR_FC_BG, borderColor:COLOR_FC, borderWidth:2, borderRadius:6, yAxisID:'y', datalabels:{anchor:'end',align:'end',color:COLOR_FC,font:{size:10,weight:'700'},formatter:fmtShort} },
+      { type:'bar', label:sec.actLabel, data:filteredDates.map(d=>actMetric?.daily[d]||0), backgroundColor:COLOR_ACT_BG, borderColor:COLOR_ACT, borderWidth:2, borderRadius:6, yAxisID:'y', datalabels:{anchor:'end',align:'end',color:COLOR_ACT,font:{size:10,weight:'700'},formatter:fmtShort} },
     ];
-    if (lineMetric) {
-      datasets.push({ type:'line', label: lineMetric.label, data: filteredDates.map(d=>lineMetric.daily[d]??null), borderColor:COLOR_PCT, backgroundColor:'#fef3c7', borderWidth:3, pointRadius:6, pointBackgroundColor:COLOR_PCT, tension:0.3, yAxisID:'y2', fill:false,
-        datalabels:{align:'top',color:COLOR_PCT,font:{size:10,weight:'700'},formatter:v=>v!=null?(sec.pctLabel?v.toFixed(1)+'%':v.toFixed(1)):''} });
-    }
-    chartInstances['ts_sec'] = new Chart(ctx.getContext('2d'), {
-      data: { labels: filteredDates, datasets },
-      options: tsChartOpts(!!lineMetric)
-    });
+    if (lineMetric) datasets.push({ type:'line', label:lineMetric.label, data:filteredDates.map(d=>lineMetric.daily[d]??null), borderColor:COLOR_PCT, backgroundColor:'#fef3c7', borderWidth:3, pointRadius:6, pointBackgroundColor:COLOR_PCT, tension:0.3, yAxisID:'y2', fill:false, datalabels:{align:'top',color:COLOR_PCT,font:{size:10,weight:'700'},formatter:v=>v!=null?(sec.pctLabel?v.toFixed(1)+'%':v.toFixed(1)):''} });
+    chartInstances['ts_sec'] = new Chart(ctx.getContext('2d'), { data:{ labels:filteredDates, datasets }, options:tsChartOpts(!!lineMetric) });
   }, 50);
 }
 
-
-
+// ══════════════════════════════════════════════════════════════════════════════
+// PUTAWAY
+// ══════════════════════════════════════════════════════════════════════════════
 
 async function renderPutaway() {
   if (!globalPutaway) {
     document.getElementById('content').innerHTML = '<div class="loading">Loading putaway<span class="dot">.</span><span class="dot">.</span><span class="dot">.</span></div>';
-    try {
-      globalPutaway = await fetch('/api/putaway').then(r => r.json());
-    } catch(e) {
-      document.getElementById('content').innerHTML = `<div class="loading">Error: ${e.message}</div>`;
-      return;
-    }
+    try { globalPutaway = await fetch('/api/putaway').then(r => r.json()); }
+    catch(e) { document.getElementById('content').innerHTML = `<div class="loading">Error: ${e.message}</div>`; return; }
   }
-
   const { dates, metrics, kpi } = globalPutaway;
-  const frCls = kpi.fr >= 95 ? 'c-green' : kpi.fr >= 80 ? 'c-yellow' : 'c-red';
-
-  // Filter dates by topbar date range
   const { from, to } = getFromTo();
   const filteredDates = dates.filter(d => {
-    // d format: "1 May" or "1 May 2026" - normalize to YYYY-MM-DD
     const months = {Jan:'01',Feb:'02',Mar:'03',Apr:'04',May:'05',Jun:'06',Jul:'07',Aug:'08',Sep:'09',Oct:'10',Nov:'11',Dec:'12'};
-    const parts = d.trim().split(' ');
-    const day = parts[0].padStart(2,'0');
-    const mon = months[parts[1]] || '05';
-    const year = parts[2] || '2026';
+    const parts = d.trim().split(' '); const day=parts[0].padStart(2,'0'); const mon=months[parts[1]]||'05'; const year=parts[2]||'2026';
     const iso = `${year}-${mon}-${day}`;
-    if (from && iso < from) return false;
-    if (to   && iso > to)   return false;
-    return true;
+    if (from && iso < from) return false; if (to && iso > to) return false; return true;
   });
-
-  // Compute filtered KPI
-  const fcMetric  = metrics.find(m => m.label === 'Forecast Qty');
-  const actMetric = metrics.find(m => m.label === 'Actual Qty');
-  const mpMetric  = metrics.find(m => m.label === 'Total MP');
-  const frMetric  = metrics.find(m => m.label === 'FR Accuracy %');
-
+  const fcMetric  = metrics.find(m=>m.label==='Forecast Qty');
+  const actMetric = metrics.find(m=>m.label==='Actual Qty');
+  const mpMetric  = metrics.find(m=>m.label==='Total MP');
+  const frMetric  = metrics.find(m=>m.label==='FR Accuracy %');
   const sumD = (metric) => metric ? filteredDates.reduce((s,d) => s+(metric.daily[d]||0),0) : 0;
-  const fFC  = sumD(fcMetric);
-  const fAct = sumD(actMetric);
-  const fMP  = sumD(mpMetric);
-  const fFR  = fFC > 0 ? Math.round(fAct/fFC*100) : 0;
-  const fFRCls = fFR >= 95 ? 'c-green' : fFR >= 80 ? 'c-yellow' : 'c-red';
-
-  // Build metrics table rows
-  const PCT_METRICS = metrics.filter(m => m.isPct);
-  const QTY_METRICS = metrics.filter(m => !m.isPct);
-
+  const fFC=sumD(fcMetric), fAct=sumD(actMetric), fMP=sumD(mpMetric);
+  const fFR = fFC>0 ? Math.round(fAct/fFC*100) : 0;
+  const fFRCls = fFR>=95?'c-green':fFR>=80?'c-yellow':'c-red';
+  const PCT_METRICS = metrics.filter(m=>m.isPct);
+  const QTY_METRICS = metrics.filter(m=>!m.isPct);
   const buildTableRows = (metricList) => metricList.map(m => {
     const cells = filteredDates.map(d => {
       const v = m.daily[d];
-      if (v === null || v === undefined) return '<td><span class="zero">-</span></td>';
-      if (m.isPct) {
-        const pct = v > 1 ? v : v * 100;
-        const cls = pct >= 95 ? 'pct-high' : pct >= 80 ? 'pct-mid' : pct > 0 ? 'pct-low' : 'zero';
-        return `<td class="${cls}">${Math.round(pct)}%</td>`;
-      }
-      return `<td>${v > 0 ? v.toLocaleString('id-ID') : '<span class="zero">-</span>'}</td>`;
+      if (v===null||v===undefined) return '<td><span class="zero">-</span></td>';
+      if (m.isPct) { const pct=v>1?v:v*100; const cls=pct>=95?'pct-high':pct>=80?'pct-mid':pct>0?'pct-low':'zero'; return`<td class="${cls}">${Math.round(pct)}%</td>`; }
+      return `<td>${v>0?v.toLocaleString('id-ID'):'<span class="zero">-</span>'}</td>`;
     }).join('');
     return `<tr><td>${m.label}</td>${cells}</tr>`;
   }).join('');
-
-  const dateHeaders = filteredDates.map(d => `<th>${d}</th>`).join('');
-
-  // Zone breakdown for chart
+  const dateHeaders = filteredDates.map(d=>`<th>${d}</th>`).join('');
   const zoneMetrics = ['Mezanine','Spr','High Risk','Pallet Floor','Stg Galon','Stg Relabel'];
   const zoneColors  = ['#378ADD','#1D9E75','#EF9F27','#7F77DD','#E24B4A','#20B2AA'];
-  const zoneData    = zoneMetrics.map(name => {
-    const m = metrics.find(x => x.label === name);
-    return filteredDates.reduce((s,d) => s + (m?.daily[d]||0), 0);
-  });
+  const zoneData    = zoneMetrics.map(name => { const m=metrics.find(x=>x.label===name); return filteredDates.reduce((s,d)=>s+(m?.daily[d]||0),0); });
 
   document.getElementById('content').innerHTML = `
   ${dateRangeBadge()}
@@ -1272,93 +1357,35 @@ async function renderPutaway() {
     <div class="kpi-card"><div class="kl">Total MP</div><div class="kv">${Math.round(fMP).toLocaleString('id-ID')}</div><div class="ks">man power days</div></div>
     <div class="kpi-card"><div class="kl">Forecast Qty</div><div class="kv c-purple">${Math.round(fFC).toLocaleString('id-ID')}</div><div class="ks">target putaway</div></div>
     <div class="kpi-card"><div class="kl">Actual Qty</div><div class="kv c-orange">${Math.round(fAct).toLocaleString('id-ID')}</div><div class="ks">actual putaway</div></div>
-    <div class="kpi-card"><div class="kl">FR%</div><div class="kv ${fFRCls}">${fFR ? fFR+'%' : '-'}</div><div class="ks">Actual / Forecast</div></div>
+    <div class="kpi-card"><div class="kl">FR%</div><div class="kv ${fFRCls}">${fFR?fFR+'%':'-'}</div><div class="ks">Actual / Forecast</div></div>
   </div>
-
   <div class="chart-grid-2">
-    <div class="chart-card">
-      <div class="chart-title">Forecast vs Actual Putaway — per hari</div>
-      <div class="chart-wrap" style="height:240px"><canvas id="pw_chart_daily"></canvas></div>
-    </div>
-    <div class="chart-card">
-      <div class="chart-title">Breakdown zona — total qty</div>
-      <div class="chart-wrap" style="height:240px"><canvas id="pw_chart_zone"></canvas></div>
-    </div>
+    <div class="chart-card"><div class="chart-title">Forecast vs Actual Putaway — per hari</div><div class="chart-wrap" style="height:240px"><canvas id="pw_chart_daily"></canvas></div></div>
+    <div class="chart-card"><div class="chart-title">Breakdown zona — total qty</div><div class="chart-wrap" style="height:240px"><canvas id="pw_chart_zone"></canvas></div></div>
   </div>
-
   <div class="section-title">📋 Metrics per Hari — Qty</div>
-  <div class="table-card">
-    <div class="table-header"><span>Putaway Qty Detail</span><span style="font-size:10px;color:#94a3b8">scroll → lihat semua</span></div>
-    <div class="overview-table-wrap">
-      <table class="overview-table">
-        <thead><tr><th style="min-width:200px">Metric</th>${dateHeaders}</tr></thead>
-        <tbody>${buildTableRows(QTY_METRICS)}</tbody>
-      </table>
-    </div>
-  </div>
-
+  <div class="table-card"><div class="table-header"><span>Putaway Qty Detail</span></div><div class="overview-table-wrap"><table class="overview-table"><thead><tr><th style="min-width:200px">Metric</th>${dateHeaders}</tr></thead><tbody>${buildTableRows(QTY_METRICS)}</tbody></table></div></div>
   <div class="section-title">📊 Metrics per Hari — Persentase</div>
-  <div class="table-card">
-    <div class="table-header"><span>Putaway % Detail</span><span style="font-size:10px;color:#94a3b8">scroll → lihat semua</span></div>
-    <div class="overview-table-wrap">
-      <table class="overview-table">
-        <thead><tr><th style="min-width:200px">Metric</th>${dateHeaders}</tr></thead>
-        <tbody>${buildTableRows(PCT_METRICS)}</tbody>
-      </table>
-    </div>
-  </div>`;
+  <div class="table-card"><div class="table-header"><span>Putaway % Detail</span></div><div class="overview-table-wrap"><table class="overview-table"><thead><tr><th style="min-width:200px">Metric</th>${dateHeaders}</tr></thead><tbody>${buildTableRows(PCT_METRICS)}</tbody></table></div></div>`;
 
   setTimeout(() => {
-    // Daily FC vs Actual chart
-    const ctx1 = document.getElementById('pw_chart_daily');
-    if (ctx1) {
-      chartInstances['pw_daily'] = new Chart(ctx1.getContext('2d'), {
-        data: {
-          labels: filteredDates,
-          datasets: [
-            { type:'bar', label:'Forecast', data: filteredDates.map(d => fcMetric?.daily[d]||0), backgroundColor: COLOR_FC_BG, borderColor: COLOR_FC, borderWidth:2, borderRadius:6, yAxisID:'y',
-              datalabels:{ anchor:'end', align:'end', color:COLOR_FC, font:{size:10,weight:'700'}, formatter:fmtShort } },
-            { type:'bar', label:'Actual', data: filteredDates.map(d => actMetric?.daily[d]||0), backgroundColor: COLOR_ACT_BG, borderColor: COLOR_ACT, borderWidth:2, borderRadius:6, yAxisID:'y',
-              datalabels:{ anchor:'end', align:'end', color:COLOR_ACT, font:{size:10,weight:'700'}, formatter:fmtShort } },
-            { type:'line', label:'FR%', data: filteredDates.map(d => {
-                const m = frMetric?.daily[d];
-                if (!m) return null;
-                return m > 1 ? m : Math.round(m*100);
-              }), borderColor:COLOR_PCT, backgroundColor:'#fef3c7', borderWidth:3, pointRadius:6, pointBackgroundColor:COLOR_PCT, tension:0.3, yAxisID:'y2', fill:false,
-              datalabels:{ align:'top', color:COLOR_PCT, font:{size:10,weight:'700'}, formatter:v => v ? v+'%' : '' } }
-          ]
-        },
-        options: {
-          responsive:true, maintainAspectRatio:false, interaction:{mode:'index',intersect:false}, layout:{padding:{top:24}},
-          plugins:{ legend:{labels:{color:'#475569',font:{size:11},boxWidth:14}},
-            tooltip:{callbacks:{label: c => c.dataset.yAxisID==='y2' ? ` ${c.dataset.label}: ${c.raw}%` : ` ${c.dataset.label}: ${Number(c.raw).toLocaleString('id-ID')}`}} },
-          scales:{
-            x:{ticks:{color:'#64748b',font:{size:11},maxRotation:45},grid:{color:'#f1f5f9'}},
-            y:{position:'left',ticks:{color:'#64748b',font:{size:10},callback:v=>Number(v).toLocaleString('id-ID')},grid:{color:'#f1f5f9'}},
-            y2:{position:'right',min:0,max:130,ticks:{color:COLOR_PCT,font:{size:10},callback:v=>v+'%'},grid:{drawOnChartArea:false}}
-          }
-        }
-      });
-    }
-
-    // Zone donut
-    const ctx2 = document.getElementById('pw_chart_zone');
-    if (ctx2) {
-      chartInstances['pw_zone'] = new Chart(ctx2.getContext('2d'), {
-        type:'doughnut',
-        data: {
-          labels: zoneMetrics,
-          datasets:[{ data: zoneData, backgroundColor: zoneColors, borderWidth:0 }]
-        },
-        options: {
-          responsive:true, maintainAspectRatio:false, cutout:'55%',
-          plugins:{
-            legend:{position:'right',labels:{color:'#475569',font:{size:10},boxWidth:12}},
-            datalabels:{ color:'#fff', font:{size:10,weight:'700'}, formatter:(v,ctx) => v > 0 ? fmtShort(v) : '' }
-          }
-        }
-      });
-    }
+    chartInstances['pw_daily'] = new Chart(document.getElementById('pw_chart_daily').getContext('2d'), {
+      data:{ labels:filteredDates, datasets:[
+        { type:'bar', label:'Forecast', data:filteredDates.map(d=>fcMetric?.daily[d]||0), backgroundColor:COLOR_FC_BG, borderColor:COLOR_FC, borderWidth:2, borderRadius:6, yAxisID:'y', datalabels:{anchor:'end',align:'end',color:COLOR_FC,font:{size:10,weight:'700'},formatter:fmtShort} },
+        { type:'bar', label:'Actual', data:filteredDates.map(d=>actMetric?.daily[d]||0), backgroundColor:COLOR_ACT_BG, borderColor:COLOR_ACT, borderWidth:2, borderRadius:6, yAxisID:'y', datalabels:{anchor:'end',align:'end',color:COLOR_ACT,font:{size:10,weight:'700'},formatter:fmtShort} },
+        { type:'line', label:'FR%', data:filteredDates.map(d=>{const m=frMetric?.daily[d];if(!m)return null;return m>1?m:Math.round(m*100);}), borderColor:COLOR_PCT, backgroundColor:'#fef3c7', borderWidth:3, pointRadius:6, pointBackgroundColor:COLOR_PCT, tension:0.3, yAxisID:'y2', fill:false, datalabels:{align:'top',color:COLOR_PCT,font:{size:10,weight:'700'},formatter:v=>v?v+'%':''} }
+      ]},
+      options:{ responsive:true, maintainAspectRatio:false, interaction:{mode:'index',intersect:false}, layout:{padding:{top:24}},
+        plugins:{ legend:{labels:{color:'#475569',font:{size:11},boxWidth:14}} },
+        scales:{ x:{ticks:{color:'#64748b',font:{size:11},maxRotation:45},grid:{color:'#f1f5f9'}},
+          y:{position:'left',ticks:{color:'#64748b',font:{size:10},callback:v=>Number(v).toLocaleString('id-ID')},grid:{color:'#f1f5f9'}},
+          y2:{position:'right',min:0,max:130,ticks:{color:COLOR_PCT,font:{size:10},callback:v=>v+'%'},grid:{drawOnChartArea:false}} } }
+    });
+    chartInstances['pw_zone'] = new Chart(document.getElementById('pw_chart_zone').getContext('2d'), {
+      type:'doughnut', data:{ labels:zoneMetrics, datasets:[{ data:zoneData, backgroundColor:zoneColors, borderWidth:0 }] },
+      options:{ responsive:true, maintainAspectRatio:false, cutout:'55%',
+        plugins:{ legend:{position:'right',labels:{color:'#475569',font:{size:10},boxWidth:12}}, datalabels:{color:'#fff',font:{size:10,weight:'700'},formatter:(v)=>v>0?fmtShort(v):''} } }
+    });
   }, 50);
 }
 
@@ -1366,86 +1393,37 @@ async function renderPutaway() {
 // REPLENISH OVERVIEW
 // ══════════════════════════════════════════════════════════════════════════════
 
-
 function renderOverview() {
   const filtered = (globalRekap||[]).filter(r => inRange(r.tanggal));
   const active   = filtered.filter(r => r.totalTask > 0);
-
   const totTask = active.reduce((s,r)=>s+r.totalTask,0);
   const totMove = active.reduce((s,r)=>s+r.qtyMove,0);
   const avgFR   = active.length ? Math.round(active.reduce((s,r)=>s+r.frPct,0)/active.length) : 0;
   const avgProd = active.length ? Math.round(active.reduce((s,r)=>s+r.prodDay,0)/active.length) : 0;
   const totMP   = active.reduce((s,r) => s + (r.pic||0), 0);
   const frCls   = avgFR>=95?'c-green':avgFR>=80?'c-yellow':'c-red';
-
   const today = new Date();
   const todayStr = `${pad(today.getDate())}/${pad(today.getMonth()+1)}/2026`;
-
   const rows = filtered.map(r => {
     const isToday = r.tanggal === todayStr;
-    const off = r.totalTask===0 ? ' col-off' : '';
-    const td  = isToday ? ' col-today' : '';
-    const fr  = r.frPct ? `<span class="${pctClass(r.frPct)}">${r.frPct}%</span>` : '<span class="zero">-</span>';
-    return `<tr>
-      <td class="${off}${td}">${r.tanggal}${isToday?' 📍':''}</td>
-      <td class="${off}${td}">${fmt(r.qtySSInv)}</td>
-      <td class="${off}${td}">${fmt(r.qtySSPut)}</td>
-      <td class="${off}${td}">${fmt(r.qtySystem)}</td>
-      <td class="${off}${td}">${fmt(r.qtyManual)}</td>
-      <td class="${off}${td}">${fmt(r.qtyMilkrun)}</td>
-      <td class="${off}${td}" style="font-weight:700;color:#0f172a">${fmtP(r.totalTask)||'-'}</td>
-      <td class="${off}${td} val-act">${fmtP(r.qtyMove)||'-'}</td>
-      <td class="${off}${td}">${r.pic||'-'}</td>
-      <td class="${off}${td}">${fr}</td>
-      <td class="${off}${td}">${r.prodDay ? Math.round(r.prodDay).toLocaleString('id-ID') : '-'}</td>
-    </tr>`;
+    const off = r.totalTask===0 ? ' col-off' : ''; const td = isToday ? ' col-today' : '';
+    const fr = r.frPct ? `<span class="${pctClass(r.frPct)}">${r.frPct}%</span>` : '<span class="zero">-</span>';
+    return `<tr><td class="${off}${td}">${r.tanggal}${isToday?' 📍':''}</td><td class="${off}${td}">${fmt(r.qtySSInv)}</td><td class="${off}${td}">${fmt(r.qtySSPut)}</td><td class="${off}${td}">${fmt(r.qtySystem)}</td><td class="${off}${td}">${fmt(r.qtyManual)}</td><td class="${off}${td}">${fmt(r.qtyMilkrun)}</td><td class="${off}${td}" style="font-weight:700;color:#0f172a">${fmtP(r.totalTask)||'-'}</td><td class="${off}${td} val-act">${fmtP(r.qtyMove)||'-'}</td><td class="${off}${td}">${r.pic||'-'}</td><td class="${off}${td}">${fr}</td><td class="${off}${td}">${r.prodDay?Math.round(r.prodDay).toLocaleString('id-ID'):'-'}</td></tr>`;
   }).join('');
-
-  const totSSInv = active.reduce((s,r)=>s+r.qtySSInv,0);
-  const totSSPut = active.reduce((s,r)=>s+r.qtySSPut,0);
-  const totSys   = active.reduce((s,r)=>s+r.qtySystem,0);
-  const totMan   = active.reduce((s,r)=>s+r.qtyManual,0);
-  const totMilk  = active.reduce((s,r)=>s+r.qtyMilkrun,0);
-  const totPIC   = active.reduce((s,r)=>s+r.pic,0);
-
+  const totSSInv=active.reduce((s,r)=>s+r.qtySSInv,0), totSSPut=active.reduce((s,r)=>s+r.qtySSPut,0), totSys=active.reduce((s,r)=>s+r.qtySystem,0), totMan=active.reduce((s,r)=>s+r.qtyManual,0), totMilk=active.reduce((s,r)=>s+r.qtyMilkrun,0), totPIC=active.reduce((s,r)=>s+r.pic,0);
   const summaryDates = (globalSummary?.dates||[]).filter(d => inRange(d));
-  const PCT_EXCLUDE = ['Pick to PF if Completion 100%'];
-  const summaryRows = (globalSummary?.metrics||[])
-    .filter(m => m.label !== 'Description')
-    .map(m => {
-      const isPct = m.isPct !== undefined ? m.isPct : (m.label.includes('%') && !PCT_EXCLUDE.includes(m.label));
-      const cells = summaryDates.map(d => {
-        const val = m.daily[d] || 0;
-        if (!val) return '<td><span class="zero">-</span></td>';
-        if (isPct) return `<td class="${pctClassDec(val)}">${Math.round(val*100)}%</td>`;
-        return `<td>${Math.round(val).toLocaleString('id-ID')}</td>`;
-      }).join('');
-      return `<tr class="${isPct?'pct-row':''}"><td>${m.label}</td>${cells}</tr>`;
-    }).join('');
-  const summaryHeaders = summaryDates.map(d => {
-    const parts = d.split('/');
-    return `<th>${parts[0]}/${parts[1]}</th>`;
+  const summaryRows = (globalSummary?.metrics||[]).filter(m=>m.label!=='Description').map(m => {
+    const isPct = m.isPct !== undefined ? m.isPct : (m.label.includes('%') && !['Pick to PF if Completion 100%'].includes(m.label));
+    const cells = summaryDates.map(d => { const val=m.daily[d]||0; if(!val)return'<td><span class="zero">-</span></td>'; if(isPct)return`<td class="${pctClassDec(val)}">${Math.round(val*100)}%</td>`; return`<td>${Math.round(val).toLocaleString('id-ID')}</td>`; }).join('');
+    return `<tr class="${isPct?'pct-row':''}"><td>${m.label}</td>${cells}</tr>`;
   }).join('');
-
+  const summaryHeaders = summaryDates.map(d => { const parts=d.split('/'); return`<th>${parts[0]}/${parts[1]}</th>`; }).join('');
   const sections = globalData?.sections || [];
-  const kpiCards = sections.map((sec, i) => {
-    const f = sec.daily.filter(d => inRange(d.date));
-    const k = calcKPI(f);
-    const pctCls = k.avgPct>=95?'c-green':k.avgPct>=80?'c-yellow':k.avgPct>0?'c-red':'';
-    const barCls = k.avgPct>=95?'bg-green':k.avgPct>=80?'bg-yellow':'bg-red';
-    return `
-    <div class="kpi-card" style="cursor:pointer" onclick="navigate('${SECTION_KEYS[i]}')">
-      <div class="kl">${sec.name}</div>
-      <div class="kv ${pctCls}" style="font-size:26px">${k.avgPct?k.avgPct+'%':'-'}</div>
-      <div style="height:4px;background:#f1f5f9;border-radius:999px;margin:8px 0;overflow:hidden">
-        <div style="height:100%;width:${Math.min(k.avgPct,100)}%;border-radius:999px" class="${barCls}"></div>
-      </div>
-      <div style="display:flex;justify-content:space-between;margin-top:6px">
-        <div><div style="font-size:11px;font-weight:700;color:${COLOR_FC}">${fmtP(k.totalFC)}</div><div class="ks">Forecast</div></div>
-        <div><div style="font-size:11px;font-weight:700;color:${COLOR_ACT}">${fmtP(k.totalAct)}</div><div class="ks">Actual</div></div>
-        <div><div style="font-size:11px;font-weight:700">${k.totalMP}</div><div class="ks">MP</div></div>
-      </div>
-    </div>`;
+  const kpiCards = sections.map((sec,i) => {
+    const f=sec.daily.filter(d=>inRange(d.date)); const k=calcKPI(f);
+    const pctCls=k.avgPct>=95?'c-green':k.avgPct>=80?'c-yellow':k.avgPct>0?'c-red':'';
+    const barCls=k.avgPct>=95?'bg-green':k.avgPct>=80?'bg-yellow':'bg-red';
+    return `<div class="kpi-card" style="cursor:pointer" onclick="navigate('${SECTION_KEYS[i]}')"><div class="kl">${sec.name}</div><div class="kv ${pctCls}" style="font-size:26px">${k.avgPct?k.avgPct+'%':'-'}</div><div style="height:4px;background:#f1f5f9;border-radius:999px;margin:8px 0;overflow:hidden"><div style="height:100%;width:${Math.min(k.avgPct,100)}%;border-radius:999px" class="${barCls}"></div></div><div style="display:flex;justify-content:space-between;margin-top:6px"><div><div style="font-size:11px;font-weight:700;color:${COLOR_FC}">${fmtP(k.totalFC)}</div><div class="ks">Forecast</div></div><div><div style="font-size:11px;font-weight:700;color:${COLOR_ACT}">${fmtP(k.totalAct)}</div><div class="ks">Actual</div></div><div><div style="font-size:11px;font-weight:700">${k.totalMP}</div><div class="ks">MP</div></div></div></div>`;
   }).join('');
 
   document.getElementById('content').innerHTML = `
@@ -1459,79 +1437,36 @@ function renderOverview() {
   </div>
   <div class="section-title">📈 Achievement per Section</div>
   <div class="kpi-row" style="grid-template-columns:repeat(3,1fr)">${kpiCards}</div>
-  <div class="chart-card">
-    <div class="chart-title">Forecast vs Actual — Semua Section</div>
-    <div class="chart-wrap" style="height:320px"><canvas id="chart_overview"></canvas></div>
-  </div>
+  <div class="chart-card"><div class="chart-title">Forecast vs Actual — Semua Section</div><div class="chart-wrap" style="height:320px"><canvas id="chart_overview"></canvas></div></div>
   <div class="section-title">📋 Rekap Produksi Per Hari</div>
   <div class="table-card">
-    <div class="table-header">
-      <span>Daily Production</span>
-      <span style="font-size:10px;color:#94a3b8">${active.length} hari aktif</span>
-    </div>
-    <div class="overview-table-wrap">
-      <table class="overview-table">
-        <thead><tr>
-          <th>Tanggal</th><th>SS Inventory</th><th>SS Putaway</th>
-          <th>System</th><th>Manual</th><th>Milkrun</th>
-          <th>Total Task</th><th>Qty Move</th><th>PIC</th><th>%FR</th><th>Prod/Day</th>
-        </tr></thead>
-        <tbody>${rows}</tbody>
-        <tfoot><tr>
-          <td>TOTAL</td>
-          <td>${fmtP(totSSInv)}</td><td>${fmtP(totSSPut)}</td>
-          <td>${fmtP(totSys)}</td><td>${fmtP(totMan)}</td><td>${fmtP(totMilk)}</td>
-          <td style="color:#0f172a">${fmtP(totTask)}</td>
-          <td style="color:${COLOR_ACT}">${fmtP(totMove)}</td>
-          <td>${fmtP(totPIC)}</td>
-          <td class="${frCls}">${avgFR?avgFR+'%':'-'}</td>
-          <td style="color:#3b82f6">${avgProd?avgProd.toLocaleString('id-ID'):'-'}</td>
-        </tr></tfoot>
-      </table>
-    </div>
+    <div class="table-header"><span>Daily Production</span><span style="font-size:10px;color:#94a3b8">${active.length} hari aktif</span></div>
+    <div class="overview-table-wrap"><table class="overview-table"><thead><tr><th>Tanggal</th><th>SS Inventory</th><th>SS Putaway</th><th>System</th><th>Manual</th><th>Milkrun</th><th>Total Task</th><th>Qty Move</th><th>PIC</th><th>%FR</th><th>Prod/Day</th></tr></thead>
+    <tbody>${rows}</tbody>
+    <tfoot><tr><td>TOTAL</td><td>${fmtP(totSSInv)}</td><td>${fmtP(totSSPut)}</td><td>${fmtP(totSys)}</td><td>${fmtP(totMan)}</td><td>${fmtP(totMilk)}</td><td style="color:#0f172a">${fmtP(totTask)}</td><td style="color:${COLOR_ACT}">${fmtP(totMove)}</td><td>${fmtP(totPIC)}</td><td class="${frCls}">${avgFR?avgFR+'%':'-'}</td><td style="color:#3b82f6">${avgProd?avgProd.toLocaleString('id-ID'):'-'}</td></tr></tfoot>
+    </table></div>
   </div>
   <div class="section-title">📊 Summary Replenishment</div>
-  <div class="table-card">
-    <div class="table-header">
-      <span>Metrics per Tanggal</span>
-      <span style="font-size:10px;color:#94a3b8">scroll → lihat semua</span>
-    </div>
-    <div class="overview-table-wrap">
-      <table class="summary-table">
-        <thead><tr><th>Metric</th>${summaryHeaders}</tr></thead>
-        <tbody>${summaryRows}</tbody>
-      </table>
-    </div>
-  </div>`;
+  <div class="table-card"><div class="table-header"><span>Metrics per Tanggal</span><span style="font-size:10px;color:#94a3b8">scroll →</span></div>
+  <div class="overview-table-wrap"><table class="summary-table"><thead><tr><th>Metric</th>${summaryHeaders}</tr></thead><tbody>${summaryRows}</tbody></table></div></div>`;
 
   setTimeout(() => {
-    const ctx = document.getElementById('chart_overview');
-    if (!ctx || !sections.length) return;
-    const labels  = sections.map(s => s.name);
-    const fcData  = sections.map(s => s.daily.filter(d=>inRange(d.date)).reduce((sum,d)=>sum+d.forecast,0));
-    const actData = sections.map(s => s.daily.filter(d=>inRange(d.date)).reduce((sum,d)=>sum+d.actual,0));
-    const pctData = sections.map(s => {
-      const f = s.daily.filter(d => inRange(d.date) && (d.forecast>0||d.actual>0));
-      return f.length ? Math.round(f.reduce((sum,d)=>sum+d.pct,0)/f.length) : 0;
-    });
+    const ctx = document.getElementById('chart_overview'); if (!ctx || !sections.length) return;
+    const labels=sections.map(s=>s.name);
+    const fcData=sections.map(s=>s.daily.filter(d=>inRange(d.date)).reduce((sum,d)=>sum+d.forecast,0));
+    const actData=sections.map(s=>s.daily.filter(d=>inRange(d.date)).reduce((sum,d)=>sum+d.actual,0));
+    const pctData=sections.map(s=>{const f=s.daily.filter(d=>inRange(d.date)&&(d.forecast>0||d.actual>0));return f.length?Math.round(f.reduce((sum,d)=>sum+d.pct,0)/f.length):0;});
     chartInstances['chart_overview'] = new Chart(ctx.getContext('2d'), {
-      data: { labels,
-        datasets: [
-          { type:'bar', label:'Forecast', data:fcData, backgroundColor:COLOR_FC_BG, borderColor:COLOR_FC, borderWidth:2, borderRadius:6, yAxisID:'y',
-            datalabels:{ anchor:'end', align:'end', color:COLOR_FC, font:{size:10,weight:'700'}, formatter:fmtShort } },
-          { type:'bar', label:'Actual', data:actData, backgroundColor:COLOR_ACT_BG, borderColor:COLOR_ACT, borderWidth:2, borderRadius:6, yAxisID:'y',
-            datalabels:{ anchor:'end', align:'end', color:COLOR_ACT, font:{size:10,weight:'700'}, formatter:fmtShort } },
-          { type:'line', label:'Avg Achievement %', data:pctData, borderColor:COLOR_PCT, backgroundColor:'#fef3c7', borderWidth:3, pointRadius:6, pointBackgroundColor:COLOR_PCT, tension:0.3, yAxisID:'y2', fill:false,
-            datalabels:{ align:'top', color:COLOR_PCT, font:{size:10,weight:'700'}, formatter:v => v+'%' } }
-        ]
-      },
-      options: { responsive:true, maintainAspectRatio:false, interaction:{mode:'index',intersect:false}, layout:{padding:{top:24}},
-        plugins:{ legend:{labels:{color:'#475569',font:{size:11},boxWidth:14}},
-          tooltip:{callbacks:{label: c => c.dataset.yAxisID==='y2' ? ` ${c.dataset.label}: ${c.raw}%` : ` ${c.dataset.label}: ${Number(c.raw).toLocaleString('id-ID')}`}} },
+      data:{ labels, datasets:[
+        { type:'bar', label:'Forecast', data:fcData, backgroundColor:COLOR_FC_BG, borderColor:COLOR_FC, borderWidth:2, borderRadius:6, yAxisID:'y', datalabels:{anchor:'end',align:'end',color:COLOR_FC,font:{size:10,weight:'700'},formatter:fmtShort} },
+        { type:'bar', label:'Actual', data:actData, backgroundColor:COLOR_ACT_BG, borderColor:COLOR_ACT, borderWidth:2, borderRadius:6, yAxisID:'y', datalabels:{anchor:'end',align:'end',color:COLOR_ACT,font:{size:10,weight:'700'},formatter:fmtShort} },
+        { type:'line', label:'Avg Achievement %', data:pctData, borderColor:COLOR_PCT, backgroundColor:'#fef3c7', borderWidth:3, pointRadius:6, pointBackgroundColor:COLOR_PCT, tension:0.3, yAxisID:'y2', fill:false, datalabels:{align:'top',color:COLOR_PCT,font:{size:10,weight:'700'},formatter:v=>v+'%'} }
+      ]},
+      options:{ responsive:true, maintainAspectRatio:false, interaction:{mode:'index',intersect:false}, layout:{padding:{top:24}},
+        plugins:{ legend:{labels:{color:'#475569',font:{size:11},boxWidth:14}} },
         scales:{ x:{ticks:{color:'#64748b',font:{size:11}},grid:{color:'#f1f5f9'}},
           y:{position:'left',ticks:{color:'#64748b',font:{size:10},callback:v=>Number(v).toLocaleString('id-ID')},grid:{color:'#f1f5f9'}},
-          y2:{position:'right',min:0,max:130,ticks:{color:COLOR_PCT,font:{size:10},callback:v=>v+'%'},grid:{drawOnChartArea:false}} }
-      }
+          y2:{position:'right',min:0,max:130,ticks:{color:COLOR_PCT,font:{size:10},callback:v=>v+'%'},grid:{drawOnChartArea:false}} } }
     });
   }, 50);
 }
@@ -1540,20 +1475,12 @@ function renderSection(sec, idx) {
   const filtered = sec.daily.filter(d => inRange(d.date));
   const k = calcKPI(filtered);
   const pctCls = k.avgPct>=95?'c-green':k.avgPct>=80?'c-yellow':k.avgPct>0?'c-red':'';
-  if (filtered.length===0) {
-    document.getElementById('content').innerHTML = dateRangeBadge() + '<div class="empty-state">Tidak ada data untuk rentang tanggal ini.</div>';
-    return;
-  }
-  const today = new Date();
-  const todayStr = `${pad(today.getDate())}/${pad(today.getMonth()+1)}`;
-  const dateHeaders = filtered.map(d => {
-    const isTd = d.date===todayStr;
-    return `<th${isTd?' style="background:#eff6ff;color:#1d4ed8"':''}>${d.date}${isTd?' 📍':''}</th>`;
-  }).join('');
+  if (filtered.length===0) { document.getElementById('content').innerHTML = dateRangeBadge() + '<div class="empty-state">Tidak ada data untuk rentang tanggal ini.</div>'; return; }
+  const today = new Date(); const todayStr = `${pad(today.getDate())}/${pad(today.getMonth()+1)}`;
+  const dateHeaders = filtered.map(d=>{ const isTd=d.date===todayStr; return`<th${isTd?' style="background:#eff6ff;color:#1d4ed8"':''}>${d.date}${isTd?' 📍':''}</th>`; }).join('');
   let mpRow='', fcRow='', actRow='', pctRow='';
   filtered.forEach(d => {
-    const off = (!d.mp&&!d.forecast&&!d.actual)?' col-off':'';
-    const td  = d.date===todayStr?' col-today':'';
+    const off=(!d.mp&&!d.forecast&&!d.actual)?' col-off':''; const td=d.date===todayStr?' col-today':'';
     mpRow  += `<td class="${d.mp?'val-mp':'zero'}${off}${td}">${d.mp||'-'}</td>`;
     fcRow  += `<td class="${d.forecast?'val-fc':'zero'}${off}${td}">${fmt(d.forecast)}</td>`;
     actRow += `<td class="${d.actual?'val-act':'zero'}${off}${td}">${fmt(d.actual)}</td>`;
@@ -1568,51 +1495,27 @@ function renderSection(sec, idx) {
     <div class="kpi-card"><div class="kl">Total Actual</div><div class="kv c-orange">${fmtP(k.totalAct)}</div><div class="ks">achieved qty</div></div>
     <div class="kpi-card"><div class="kl">Avg Achievement</div><div class="kv ${pctCls}">${k.avgPct?k.avgPct+'%':'-'}</div><div class="ks">active days only</div></div>
   </div>
-  <div class="chart-card">
-    <div class="chart-title">Forecast vs Actual · Achievement %</div>
-    <div class="chart-wrap" style="height:260px"><canvas id="chart_${idx}"></canvas></div>
-  </div>
+  <div class="chart-card"><div class="chart-title">Forecast vs Actual · Achievement %</div><div class="chart-wrap" style="height:260px"><canvas id="chart_${idx}"></canvas></div></div>
   <div class="table-card">
-    <div class="table-header"><span>Daily Detail</span><span style="font-size:10px;color:#94a3b8">${filtered.length} hari · scroll → lihat semua</span></div>
+    <div class="table-header"><span>Daily Detail</span><span style="font-size:10px;color:#94a3b8">${filtered.length} hari · scroll →</span></div>
     <div class="table-container">
-      <div class="frozen-left">
-        <table><thead><tr><th>Metric</th></tr></thead>
-          <tbody>
-            <tr><td>Total MP</td></tr>
-            <tr><td>${sec.forecastLabel}</td></tr>
-            <tr><td>Actual Move</td></tr>
-            <tr><td>Achievement %</td></tr>
-          </tbody>
-        </table>
-      </div>
-      <div class="scroll-right">
-        <table><thead><tr>${dateHeaders}</tr></thead>
-          <tbody><tr>${mpRow}</tr><tr>${fcRow}</tr><tr>${actRow}</tr><tr>${pctRow}</tr></tbody>
-        </table>
-      </div>
+      <div class="frozen-left"><table><thead><tr><th>Metric</th></tr></thead><tbody><tr><td>Total MP</td></tr><tr><td>${sec.forecastLabel}</td></tr><tr><td>Actual Move</td></tr><tr><td>Achievement %</td></tr></tbody></table></div>
+      <div class="scroll-right"><table><thead><tr>${dateHeaders}</tr></thead><tbody><tr>${mpRow}</tr><tr>${fcRow}</tr><tr>${actRow}</tr><tr>${pctRow}</tr></tbody></table></div>
     </div>
   </div>`;
   setTimeout(() => {
-    const ctx = document.getElementById('chart_'+idx);
-    if (!ctx) return;
+    const ctx = document.getElementById('chart_'+idx); if (!ctx) return;
     chartInstances['chart_'+idx] = new Chart(ctx.getContext('2d'), {
-      data: { labels: filtered.map(d=>d.date),
-        datasets: [
-          { type:'bar', label:'Forecast', data:filtered.map(d=>d.forecast), backgroundColor:COLOR_FC_BG, borderColor:COLOR_FC, borderWidth:2, borderRadius:6, yAxisID:'y',
-            datalabels:{ anchor:'end', align:'end', color:COLOR_FC, font:{size:10,weight:'700'}, formatter:fmtShort } },
-          { type:'bar', label:'Actual', data:filtered.map(d=>d.actual), backgroundColor:COLOR_ACT_BG, borderColor:COLOR_ACT, borderWidth:2, borderRadius:6, yAxisID:'y',
-            datalabels:{ anchor:'end', align:'end', color:COLOR_ACT, font:{size:10,weight:'700'}, formatter:fmtShort } },
-          { type:'line', label:'Achievement %', data:filtered.map(d=>d.pct||null), borderColor:COLOR_PCT, backgroundColor:'#fef3c7', borderWidth:3, pointRadius:6, pointBackgroundColor:COLOR_PCT, tension:0.3, yAxisID:'y2', fill:false,
-            datalabels:{ align:'top', color:COLOR_PCT, font:{size:10,weight:'700'}, formatter:v => v ? v+'%' : '' } }
-        ]
-      },
-      options: { responsive:true, maintainAspectRatio:false, interaction:{mode:'index',intersect:false}, layout:{padding:{top:24}},
-        plugins:{ legend:{labels:{color:'#475569',font:{size:11},boxWidth:14}},
-          tooltip:{callbacks:{label: c => c.dataset.yAxisID==='y2' ? ` ${c.dataset.label}: ${c.raw}%` : ` ${c.dataset.label}: ${Number(c.raw).toLocaleString('id-ID')}`}} },
+      data:{ labels:filtered.map(d=>d.date), datasets:[
+        { type:'bar', label:'Forecast', data:filtered.map(d=>d.forecast), backgroundColor:COLOR_FC_BG, borderColor:COLOR_FC, borderWidth:2, borderRadius:6, yAxisID:'y', datalabels:{anchor:'end',align:'end',color:COLOR_FC,font:{size:10,weight:'700'},formatter:fmtShort} },
+        { type:'bar', label:'Actual', data:filtered.map(d=>d.actual), backgroundColor:COLOR_ACT_BG, borderColor:COLOR_ACT, borderWidth:2, borderRadius:6, yAxisID:'y', datalabels:{anchor:'end',align:'end',color:COLOR_ACT,font:{size:10,weight:'700'},formatter:fmtShort} },
+        { type:'line', label:'Achievement %', data:filtered.map(d=>d.pct||null), borderColor:COLOR_PCT, backgroundColor:'#fef3c7', borderWidth:3, pointRadius:6, pointBackgroundColor:COLOR_PCT, tension:0.3, yAxisID:'y2', fill:false, datalabels:{align:'top',color:COLOR_PCT,font:{size:10,weight:'700'},formatter:v=>v?v+'%':''} }
+      ]},
+      options:{ responsive:true, maintainAspectRatio:false, interaction:{mode:'index',intersect:false}, layout:{padding:{top:24}},
+        plugins:{ legend:{labels:{color:'#475569',font:{size:11},boxWidth:14}} },
         scales:{ x:{ticks:{color:'#64748b',font:{size:11},maxRotation:45},grid:{color:'#f1f5f9'}},
           y:{position:'left',ticks:{color:'#64748b',font:{size:10},callback:v=>Number(v).toLocaleString('id-ID')},grid:{color:'#f1f5f9'}},
-          y2:{position:'right',min:0,max:130,ticks:{color:COLOR_PCT,font:{size:10},callback:v=>v+'%'},grid:{drawOnChartArea:false}} }
-      }
+          y2:{position:'right',min:0,max:130,ticks:{color:COLOR_PCT,font:{size:10},callback:v=>v+'%'},grid:{drawOnChartArea:false}} } }
     });
   }, 50);
 }
@@ -1626,212 +1529,86 @@ let globalLost = null;
 async function renderLost() {
   if (!globalLost) {
     document.getElementById('content').innerHTML = '<div class="loading">Loading Lost/LDP<span class="dot">.</span><span class="dot">.</span><span class="dot">.</span></div>';
-    try {
-      globalLost = await fetch('/api/lost').then(r => r.json());
-    } catch(e) {
-      document.getElementById('content').innerHTML = `<div class="loading">Error: ${e.message}</div>`;
-      return;
-    }
+    try { globalLost = await fetch('/api/lost').then(r => r.json()); }
+    catch(e) { document.getElementById('content').innerHTML = `<div class="loading">Error: ${e.message}</div>`; return; }
   }
-
   const { daily, l1, rows } = globalLost;
-
-  // Filter by date range
   const { from, to } = getFromTo();
-  const filteredDaily = daily.filter(d => {
-    if (from && d.isoDate < from) return false;
-    if (to   && d.isoDate > to)   return false;
-    return true;
-  });
-  const filteredRows = rows.filter(r => {
-    if (from && r.isoDate < from) return false;
-    if (to   && r.isoDate > to)   return false;
-    return true;
-  });
-
-  // KPI
-  const totalSku   = filteredRows.length;
-  const totalQty   = filteredRows.reduce((s,r) => s+r.qty, 0);
-  const totalValue = filteredRows.reduce((s,r) => s+r.value, 0);
-  const hilang     = filteredRows.filter(r => r.status.toLowerCase().includes('hilang')).length;
-  const pencarian  = filteredRows.filter(r => !r.status.toLowerCase().includes('hilang')).length;
-  const cycle      = filteredRows.filter(r => r.remaks.toLowerCase().includes('cycle')).length;
-
-  // L1 aggregated from filtered rows
+  const filteredDaily = daily.filter(d => { if(from&&d.isoDate<from)return false; if(to&&d.isoDate>to)return false; return true; });
+  const filteredRows  = rows.filter(r => { if(from&&r.isoDate<from)return false; if(to&&r.isoDate>to)return false; return true; });
+  const totalSku=filteredRows.length, totalQty=filteredRows.reduce((s,r)=>s+r.qty,0), totalValue=filteredRows.reduce((s,r)=>s+r.value,0);
+  const hilang=filteredRows.filter(r=>r.status.toLowerCase().includes('hilang')).length;
+  const pencarian=filteredRows.filter(r=>!r.status.toLowerCase().includes('hilang')).length;
+  const cycle=filteredRows.filter(r=>r.remaks.toLowerCase().includes('cycle')).length;
   const l1Filtered = {};
-  filteredRows.forEach(r => {
-    if (!l1Filtered[r.l1]) l1Filtered[r.l1] = { count:0, qty:0, value:0 };
-    l1Filtered[r.l1].count++;
-    l1Filtered[r.l1].qty   += r.qty;
-    l1Filtered[r.l1].value += r.value;
-  });
+  filteredRows.forEach(r => { if(!l1Filtered[r.l1])l1Filtered[r.l1]={count:0,qty:0,value:0}; l1Filtered[r.l1].count++; l1Filtered[r.l1].qty+=r.qty; l1Filtered[r.l1].value+=r.value; });
   const topL1 = Object.entries(l1Filtered).sort((a,b)=>b[1].value-a[1].value).slice(0,10);
-
-  // Separate hilang vs pencarian
-  const rowsHilang   = filteredRows.filter(r => r.status.toLowerCase().includes('hilang'));
-  const rowsPencarian = filteredRows.filter(r => !r.status.toLowerCase().includes('hilang'));
-
-  const skuHilang    = rowsHilang.length;
-  const qtyHilang    = rowsHilang.reduce((s,r)=>s+r.qty,0);
-  const valueHilang  = rowsHilang.reduce((s,r)=>s+r.value,0);
-  const skuPencarian  = rowsPencarian.length;
-  const qtyPencarian  = rowsPencarian.reduce((s,r)=>s+r.qty,0);
-  const valuePencarian= rowsPencarian.reduce((s,r)=>s+r.value,0);
-
+  const rowsHilang=filteredRows.filter(r=>r.status.toLowerCase().includes('hilang')), rowsPencarian=filteredRows.filter(r=>!r.status.toLowerCase().includes('hilang'));
+  const skuHilang=rowsHilang.length, qtyHilang=rowsHilang.reduce((s,r)=>s+r.qty,0), valueHilang=rowsHilang.reduce((s,r)=>s+r.value,0);
+  const skuPencarian=rowsPencarian.length, qtyPencarian=rowsPencarian.reduce((s,r)=>s+r.qty,0), valuePencarian=rowsPencarian.reduce((s,r)=>s+r.value,0);
   const fmtRp = v => 'Rp ' + Math.round(v).toLocaleString('id-ID');
-  const fmtRpShort = v => {
-    if (v >= 1000000000) return 'Rp ' + (v/1000000000).toFixed(1) + 'B';
-    if (v >= 1000000) return 'Rp ' + (v/1000000).toFixed(1) + 'jt';
-    if (v >= 1000) return 'Rp ' + (v/1000).toFixed(1) + 'rb';
-    return 'Rp ' + Math.round(v);
-  };
+  const tableRows = filteredRows.slice(0,200).map(r => {
+    const statusCls=r.status.toLowerCase().includes('hilang')?'badge badge-red':'badge badge-yellow';
+    const remaksCls=r.remaks.toLowerCase().includes('cycle')?'badge badge-blue':'';
+    return `<tr><td>${r.date}</td><td style="font-size:10px;color:#334155">${r.sku}</td><td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.product}">${r.product}</td><td>${r.qty}</td><td><span class="${statusCls}">${r.status}</span></td><td style="font-size:10px">${r.l1}</td><td>${remaksCls?`<span class="${remaksCls}">${r.remaks}</span>`:r.remaks}</td><td style="text-align:right;color:#ef4444;font-weight:600">${fmtRp(r.value)}</td></tr>`;
+  }).join('');
 
   document.getElementById('content').innerHTML = `
   ${dateRangeBadge()}
-
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
-    <!-- Barang Hilang -->
     <div style="background:#fff;border:2px solid #fecaca;border-radius:12px;padding:16px;">
       <div style="font-size:11px;font-weight:700;color:#ef4444;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px;">🔴 Barang Hilang</div>
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;">
-        <div class="kpi-card" style="border:none;padding:10px;background:#fef2f2">
-          <div class="kl">Total SKU</div><div class="kv c-red">${skuHilang}</div><div class="ks">item</div>
-        </div>
-        <div class="kpi-card" style="border:none;padding:10px;background:#fef2f2">
-          <div class="kl">Total Qty</div><div class="kv c-red">${Math.round(qtyHilang).toLocaleString('id-ID')}</div><div class="ks">unit</div>
-        </div>
-        <div class="kpi-card" style="border:none;padding:10px;background:#fef2f2">
-          <div class="kl">Total Value</div><div class="kv c-red" style="font-size:15px">${fmtRp(valueHilang)}</div><div class="ks">estimasi kerugian</div>
-        </div>
+        <div class="kpi-card" style="border:none;padding:10px;background:#fef2f2"><div class="kl">Total SKU</div><div class="kv c-red">${skuHilang}</div><div class="ks">item</div></div>
+        <div class="kpi-card" style="border:none;padding:10px;background:#fef2f2"><div class="kl">Total Qty</div><div class="kv c-red">${Math.round(qtyHilang).toLocaleString('id-ID')}</div><div class="ks">unit</div></div>
+        <div class="kpi-card" style="border:none;padding:10px;background:#fef2f2"><div class="kl">Total Value</div><div class="kv c-red" style="font-size:15px">${fmtRp(valueHilang)}</div><div class="ks">estimasi kerugian</div></div>
       </div>
     </div>
-    <!-- Dalam Pencarian -->
     <div style="background:#fff;border:2px solid #fde68a;border-radius:12px;padding:16px;">
       <div style="font-size:11px;font-weight:700;color:#d97706;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px;">🟡 Dalam Pencarian</div>
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;">
-        <div class="kpi-card" style="border:none;padding:10px;background:#fffbeb">
-          <div class="kl">Total SKU</div><div class="kv c-yellow">${skuPencarian}</div><div class="ks">item</div>
-        </div>
-        <div class="kpi-card" style="border:none;padding:10px;background:#fffbeb">
-          <div class="kl">Total Qty</div><div class="kv c-yellow">${Math.round(qtyPencarian).toLocaleString('id-ID')}</div><div class="ks">unit</div>
-        </div>
-        <div class="kpi-card" style="border:none;padding:10px;background:#fffbeb">
-          <div class="kl">Total Value</div><div class="kv c-yellow" style="font-size:15px">${fmtRp(valuePencarian)}</div><div class="ks">estimasi kerugian</div>
-        </div>
+        <div class="kpi-card" style="border:none;padding:10px;background:#fffbeb"><div class="kl">Total SKU</div><div class="kv c-yellow">${skuPencarian}</div><div class="ks">item</div></div>
+        <div class="kpi-card" style="border:none;padding:10px;background:#fffbeb"><div class="kl">Total Qty</div><div class="kv c-yellow">${Math.round(qtyPencarian).toLocaleString('id-ID')}</div><div class="ks">unit</div></div>
+        <div class="kpi-card" style="border:none;padding:10px;background:#fffbeb"><div class="kl">Total Value</div><div class="kv c-yellow" style="font-size:15px">${fmtRp(valuePencarian)}</div><div class="ks">estimasi kerugian</div></div>
       </div>
     </div>
   </div>
-
-  <!-- Total -->
   <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px;">
     <div class="kpi-card"><div class="kl">Total SKU</div><div class="kv">${totalSku.toLocaleString('id-ID')}</div><div class="ks">semua status</div></div>
     <div class="kpi-card"><div class="kl">Total Qty</div><div class="kv c-orange">${Math.round(totalQty).toLocaleString('id-ID')}</div><div class="ks">semua status</div></div>
     <div class="kpi-card"><div class="kl">Total Value</div><div class="kv c-red" style="font-size:15px">${fmtRp(totalValue)}</div><div class="ks">semua status</div></div>
     <div class="kpi-card"><div class="kl">SKU Cycle DCC</div><div class="kv c-blue">${cycle} <span style="font-size:13px;color:#94a3b8">/ ${totalSku}</span></div><div class="ks">kena cycle bulan ini</div></div>
   </div>
-  `;
-
-  const tableRows = filteredRows.slice(0, 200).map(r => {
-    const statusCls = r.status.toLowerCase().includes('hilang') ? 'badge badge-red' : 'badge badge-yellow';
-    const remaksCls = r.remaks.toLowerCase().includes('cycle') ? 'badge badge-blue' : '';
-    return `<tr>
-      <td>${r.date}</td>
-      <td style="font-size:10px;color:#334155">${r.sku}</td>
-      <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.product}">${r.product}</td>
-      <td>${r.qty}</td>
-      <td><span class="${statusCls}">${r.status}</span></td>
-      <td style="font-size:10px">${r.l1}</td>
-      <td>${remaksCls ? `<span class="${remaksCls}">${r.remaks}</span>` : r.remaks}</td>
-      <td style="text-align:right;color:#ef4444;font-weight:600">${fmtRp(r.value)}</td>
-    </tr>`;
-  }).join('');
-
-  document.getElementById('content').innerHTML += `
   <div class="chart-grid-2">
-    <div class="chart-card">
-      <div class="chart-title">Value Hilang per Hari (Rp)</div>
-      <div class="chart-wrap" style="height:240px"><canvas id="lost_c1"></canvas></div>
-    </div>
-    <div class="chart-card">
-      <div class="chart-title">Top 10 L1 Category — Value Hilang</div>
-      <div class="chart-wrap" style="height:240px"><canvas id="lost_c2"></canvas></div>
-    </div>
+    <div class="chart-card"><div class="chart-title">Value Hilang per Hari (Rp)</div><div class="chart-wrap" style="height:240px"><canvas id="lost_c1"></canvas></div></div>
+    <div class="chart-card"><div class="chart-title">Top 10 L1 Category — Value Hilang</div><div class="chart-wrap" style="height:240px"><canvas id="lost_c2"></canvas></div></div>
   </div>
   <div class="chart-grid-2">
-    <div class="chart-card">
-      <div class="chart-title">Status Barang</div>
-      <div class="chart-wrap" style="height:200px"><canvas id="lost_c3"></canvas></div>
-    </div>
-    <div class="chart-card">
-      <div class="chart-title">SKU Cycle vs Non Priority</div>
-      <div class="chart-wrap" style="height:200px"><canvas id="lost_c4"></canvas></div>
-    </div>
+    <div class="chart-card"><div class="chart-title">Status Barang</div><div class="chart-wrap" style="height:200px"><canvas id="lost_c3"></canvas></div></div>
+    <div class="chart-card"><div class="chart-title">SKU Cycle vs Non Priority</div><div class="chart-wrap" style="height:200px"><canvas id="lost_c4"></canvas></div></div>
   </div>
-
   <div class="section-title">📋 Detail Item (max 200 rows)</div>
-  <div class="table-card">
-    <div class="table-header"><span>Lost / LDP Detail</span><span style="font-size:10px;color:#94a3b8">${filteredRows.length} items · ${filteredDaily.length} hari</span></div>
-    <div class="ib-table-wrap">
-      <table class="ib-table">
-        <thead>
-          <tr class="th-labels">
-            <th>Tanggal</th><th>SKU</th><th>Product</th><th>Qty</th>
-            <th>Status</th><th>L1 Category</th><th>Remaks</th><th>Value</th>
-          </tr>
-        </thead>
-        <tbody>${tableRows}</tbody>
-      </table>
-    </div>
-  </div>`;
+  <div class="table-card"><div class="table-header"><span>Lost / LDP Detail</span><span style="font-size:10px;color:#94a3b8">${filteredRows.length} items</span></div>
+  <div class="ib-table-wrap"><table class="ib-table"><thead><tr class="th-labels"><th>Tanggal</th><th>SKU</th><th>Product</th><th>Qty</th><th>Status</th><th>L1 Category</th><th>Remaks</th><th>Value</th></tr></thead><tbody>${tableRows}</tbody></table></div></div>`;
 
   setTimeout(() => {
-    // Value per hari
     new Chart(document.getElementById('lost_c1').getContext('2d'), {
-      type: 'bar',
-      data: { labels: filteredDaily.map(d=>d.date), datasets: [
-        { label:'Value Hilang', data: filteredDaily.map(d => {
-            const v = filteredRows.filter(r=>r.date===d.date).reduce((s,r)=>s+r.value,0);
-            return Math.round(v);
-          }), backgroundColor:'#ef444466', borderColor:'#ef4444', borderWidth:2, borderRadius:6,
-          datalabels:{anchor:'end',align:'end',color:'#ef4444',font:{size:9,weight:'700'},formatter:v=>v>0?fmtRp(v):''} }
-      ]},
-      options:{ responsive:true, maintainAspectRatio:false, layout:{padding:{top:20}},
-        plugins:{ legend:{display:false} },
-        scales:{ x:{ticks:{color:'#64748b',font:{size:10},maxRotation:45},grid:{color:'#f1f5f9'}},
-          y:{ticks:{color:'#64748b',font:{size:10},callback:v=>v>=1000000?'Rp '+(v/1000000).toFixed(1)+'jt':v>=1000?'Rp '+(v/1000).toFixed(0)+'rb':'Rp '+v},grid:{color:'#f1f5f9'}} }
-      }
+      type:'bar', data:{ labels:filteredDaily.map(d=>d.date), datasets:[{ label:'Value Hilang', data:filteredDaily.map(d=>{const v=filteredRows.filter(r=>r.date===d.date).reduce((s,r)=>s+r.value,0);return Math.round(v);}), backgroundColor:'#ef444466', borderColor:'#ef4444', borderWidth:2, borderRadius:6, datalabels:{anchor:'end',align:'end',color:'#ef4444',font:{size:9,weight:'700'},formatter:v=>v>0?fmtRp(v):''} }] },
+      options:{ responsive:true, maintainAspectRatio:false, layout:{padding:{top:20}}, plugins:{legend:{display:false}},
+        scales:{ x:{ticks:{color:'#64748b',font:{size:10},maxRotation:45},grid:{color:'#f1f5f9'}}, y:{ticks:{color:'#64748b',font:{size:10},callback:v=>v>=1000000?'Rp '+(v/1000000).toFixed(1)+'jt':v>=1000?'Rp '+(v/1000).toFixed(0)+'rb':'Rp '+v},grid:{color:'#f1f5f9'}} } }
     });
-
-    // Top L1
     new Chart(document.getElementById('lost_c2').getContext('2d'), {
-      type: 'bar',
-      data: { labels: topL1.map(v=>v[0].length>20?v[0].slice(0,20)+'…':v[0]),
-        datasets: [{ data: topL1.map(v=>Math.round(v[1].value)), backgroundColor:'#7F77DDcc', borderColor:'#7F77DD', borderWidth:2, borderRadius:6,
-          datalabels:{anchor:'end',align:'end',color:'#7F77DD',font:{size:9,weight:'700'},formatter:v=>fmtRp(v)} }]
-      },
-      options:{ responsive:true, maintainAspectRatio:false, indexAxis:'y', layout:{padding:{right:60}},
-        plugins:{ legend:{display:false} },
-        scales:{ x:{ticks:{color:'#94a3b8',font:{size:9},callback:v=>v>=1000000?'Rp '+(v/1000000).toFixed(1)+'jt':v>=1000?'Rp '+(v/1000).toFixed(0)+'rb':'Rp '+v},grid:{color:'#f1f5f9'}},
-          y:{ticks:{color:'#475569',font:{size:9}},grid:{display:false}} }
-      }
+      type:'bar', data:{ labels:topL1.map(v=>v[0].length>20?v[0].slice(0,20)+'…':v[0]), datasets:[{ data:topL1.map(v=>Math.round(v[1].value)), backgroundColor:'#7F77DDcc', borderColor:'#7F77DD', borderWidth:2, borderRadius:6, datalabels:{anchor:'end',align:'end',color:'#7F77DD',font:{size:9,weight:'700'},formatter:v=>fmtRp(v)} }] },
+      options:{ responsive:true, maintainAspectRatio:false, indexAxis:'y', layout:{padding:{right:60}}, plugins:{legend:{display:false}},
+        scales:{ x:{ticks:{color:'#94a3b8',font:{size:9},callback:v=>v>=1000000?'Rp '+(v/1000000).toFixed(1)+'jt':v>=1000?'Rp '+(v/1000).toFixed(0)+'rb':'Rp '+v},grid:{color:'#f1f5f9'}}, y:{ticks:{color:'#475569',font:{size:9}},grid:{display:false}} } }
     });
-
-    // Status donut
     new Chart(document.getElementById('lost_c3').getContext('2d'), {
-      type:'doughnut',
-      data:{ labels:['Barang Hilang','Dalam Pencarian'], datasets:[{ data:[hilang,pencarian], backgroundColor:['#ef4444','#f59e0b'], borderWidth:0 }] },
-      options:{ responsive:true, maintainAspectRatio:false, cutout:'60%',
-        plugins:{ legend:{position:'bottom',labels:{color:'#475569',font:{size:10},boxWidth:10}},
-          datalabels:{color:'#fff',font:{size:11,weight:'700'},formatter:v=>v} } }
+      type:'doughnut', data:{labels:['Barang Hilang','Dalam Pencarian'],datasets:[{data:[hilang,pencarian],backgroundColor:['#ef4444','#f59e0b'],borderWidth:0}]},
+      options:{responsive:true,maintainAspectRatio:false,cutout:'60%',plugins:{legend:{position:'bottom',labels:{color:'#475569',font:{size:10},boxWidth:10}},datalabels:{color:'#fff',font:{size:11,weight:'700'},formatter:v=>v}}}
     });
-
-    // Cycle donut
     new Chart(document.getElementById('lost_c4').getContext('2d'), {
-      type:'doughnut',
-      data:{ labels:['SKU Cycle','Non Priority'], datasets:[{ data:[cycle, totalSku-cycle], backgroundColor:['#3b82f6','#94a3b8'], borderWidth:0 }] },
-      options:{ responsive:true, maintainAspectRatio:false, cutout:'60%',
-        plugins:{ legend:{position:'bottom',labels:{color:'#475569',font:{size:10},boxWidth:10}},
-          datalabels:{color:'#fff',font:{size:11,weight:'700'},formatter:v=>v} } }
+      type:'doughnut', data:{labels:['SKU Cycle','Non Priority'],datasets:[{data:[cycle,totalSku-cycle],backgroundColor:['#3b82f6','#94a3b8'],borderWidth:0}]},
+      options:{responsive:true,maintainAspectRatio:false,cutout:'60%',plugins:{legend:{position:'bottom',labels:{color:'#475569',font:{size:10},boxWidth:10}},datalabels:{color:'#fff',font:{size:11,weight:'700'},formatter:v=>v}}}
     });
   }, 50);
 }
@@ -1842,371 +1619,127 @@ async function renderLost() {
 
 let globalLostFound = null;
 let globalLostReport = null;
-let ldpFoundTab = 'found'; // 'found' | 'report'
+let ldpFoundTab = 'found';
 
 async function renderLdpFound() {
   if (ldpFoundTab === 'report') { renderLostReport(); return; }
-
   if (!globalLostFound) {
     document.getElementById('content').innerHTML = '<div class="loading">Loading LDP Found<span class="dot">.</span><span class="dot">.</span><span class="dot">.</span></div>';
-    try {
-      globalLostFound = await fetch('/api/lost-found').then(r => r.json());
-    } catch(e) {
-      document.getElementById('content').innerHTML = `<div class="loading">Error: ${e.message}</div>`;
-      return;
-    }
+    try { globalLostFound = await fetch('/api/lost-found').then(r => r.json()); }
+    catch(e) { document.getElementById('content').innerHTML = `<div class="loading">Error: ${e.message}</div>`; return; }
   }
-
-  const { snapshot, foundRows, rptDates, rptSources, picMap, sourceMap } = globalLostFound;
-
-  // Filter by date
+  const { snapshot, foundRows } = globalLostFound;
   const { from, to } = getFromTo();
-  const filtSnap = snapshot.filter(d => {
-    if (from && d.isoDate < from) return false;
-    if (to   && d.isoDate > to)   return false;
-    return true;
-  });
-  const filtFound = foundRows.filter(r => {
-    if (from && r.isoDate < from) return false;
-    if (to   && r.isoDate > to)   return false;
-    return true;
-  });
-
-  // KPI dari snapshot
-  const totLostQty   = filtSnap.reduce((s,d)=>s+d.lostQty,0);
-  const totLostSku   = filtSnap.length > 0 ? Math.max(...filtSnap.map(d=>d.lostSku)) : 0;
-  const totLostVal   = filtSnap.reduce((s,d)=>s+d.lostValue,0) / Math.max(filtSnap.length,1);
-  const totFoundQty  = filtSnap.reduce((s,d)=>s+d.foundQty,0);
-  const totFoundSku  = filtSnap.reduce((s,d)=>s+d.foundSku,0);
-  const totFoundVal  = filtSnap.reduce((s,d)=>s+d.foundValue,0);
-  const avgRecQty    = filtSnap.length ? Math.round(filtSnap.reduce((s,d)=>s+d.recoveryQty,0)/filtSnap.length) : 0;
-  const avgRecVal    = filtSnap.length ? Math.round(filtSnap.reduce((s,d)=>s+d.recoveryValue,0)/filtSnap.length) : 0;
-  const recQtyCls    = avgRecQty>=80?'c-green':avgRecQty>=50?'c-yellow':'c-red';
-  const recValCls    = avgRecVal>=80?'c-green':avgRecVal>=50?'c-yellow':'c-red';
-
+  const filtSnap  = snapshot.filter(d=>{if(from&&d.isoDate<from)return false;if(to&&d.isoDate>to)return false;return true;});
+  const filtFound = foundRows.filter(r=>{if(from&&r.isoDate<from)return false;if(to&&r.isoDate>to)return false;return true;});
   const fmtRp = v => 'Rp ' + Math.round(v).toLocaleString('id-ID');
-
-  // Top PIC dari filtered found rows
-  const picFiltered = {};
+  const picFiltered = {}, srcFiltered = {};
   filtFound.forEach(r => {
-    if (!picFiltered[r.pic]) picFiltered[r.pic] = { qty:0, value:0, count:0 };
-    picFiltered[r.pic].qty   += r.qty;
-    picFiltered[r.pic].value += r.valueAll;
-    picFiltered[r.pic].count++;
+    if(!picFiltered[r.pic])picFiltered[r.pic]={qty:0,value:0,count:0};
+    picFiltered[r.pic].qty+=r.qty;picFiltered[r.pic].value+=r.valueAll;picFiltered[r.pic].count++;
+    if(!srcFiltered[r.sourceFinding])srcFiltered[r.sourceFinding]={qty:0,value:0,count:0};
+    srcFiltered[r.sourceFinding].qty+=r.qty;srcFiltered[r.sourceFinding].value+=r.valueAll;srcFiltered[r.sourceFinding].count++;
   });
   const topPic = Object.entries(picFiltered).sort((a,b)=>b[1].value-a[1].value).slice(0,10);
-
-  // Top source finding
-  const srcFiltered = {};
-  filtFound.forEach(r => {
-    if (!srcFiltered[r.sourceFinding]) srcFiltered[r.sourceFinding] = { qty:0, value:0, count:0 };
-    srcFiltered[r.sourceFinding].qty   += r.qty;
-    srcFiltered[r.sourceFinding].value += r.valueAll;
-    srcFiltered[r.sourceFinding].count++;
-  });
   const topSrc = Object.entries(srcFiltered).sort((a,b)=>b[1].value-a[1].value).slice(0,8);
-
-  // Snapshot table totals
-  const totLostQtyAll  = filtSnap.reduce((s,d)=>s+d.lostQty,0);
-  const totLostSkuAll  = filtSnap.reduce((s,d)=>s+d.lostSku,0);
-  const totLostValAll  = filtSnap.reduce((s,d)=>s+d.lostValue,0);
-  const totFoundQtyAll = filtSnap.reduce((s,d)=>s+d.foundQty,0);
-  const totFoundSkuAll = filtSnap.reduce((s,d)=>s+d.foundSku,0);
-  const totFoundValAll = filtSnap.reduce((s,d)=>s+d.foundValue,0);
-  const totRecQty  = totLostQtyAll > 0 ? Math.round(totFoundQtyAll/totLostQtyAll*100) : 0;
-  const totRecVal  = totLostValAll > 0 ? Math.round(totFoundValAll/totLostValAll*100)  : 0;
-  const totRecQtyCls = totRecQty>=80?'pct-high':totRecQty>=50?'pct-mid':'pct-low';
-
-  const snapRows = filtSnap.map(d => {
-    const recQ    = d.recoveryQty;
-    const recQCls = recQ>=80?'pct-high':recQ>=50?'pct-mid':recQ>0?'pct-low':'zero';
-    return `<tr>
-      <td style="font-weight:600;color:#0f172a">${d.dateStr}</td>
-      <td style="color:#ef4444;font-weight:600">${d.lostQty.toLocaleString('id-ID')}</td>
-      <td style="color:#ef4444">${d.lostSku.toLocaleString('id-ID')}</td>
-      <td style="color:#ef4444">${fmtRp(d.lostValue)}</td>
-      <td style="color:#10b981;font-weight:600">${d.foundQty.toLocaleString('id-ID')}</td>
-      <td style="color:#10b981">${d.foundSku.toLocaleString('id-ID')}</td>
-      <td style="color:#10b981">${fmtRp(d.foundValue)}</td>
-      <td class="${recQCls}">${recQ}%</td>
-    </tr>`;
-  }).join('');
-
-  // Table rows detail
-  const detailRows = filtFound.slice(0,200).map(r => `<tr>
-    <td>${r.dateStr}</td>
-    <td style="font-size:10px">${r.sku}</td>
-    <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.product}">${r.product}</td>
-    <td>${r.qty}</td>
-    <td style="font-size:10px;color:#1d4ed8;font-weight:600">${r.pic}</td>
-    <td style="font-size:10px">${r.sourceFinding}</td>
-    <td style="font-size:10px">${r.lokasiTemuan}</td>
-    <td style="font-size:10px">${r.remaks.includes('CYCLE')||r.remaks.includes('cycle')?`<span class="badge badge-blue">${r.remaks}</span>`:r.remaks}</td>
-    <td style="text-align:right;color:#10b981;font-weight:600">${fmtRp(r.valueAll)}</td>
-  </tr>`).join('');
+  const totLostQtyAll=filtSnap.reduce((s,d)=>s+d.lostQty,0), totLostSkuAll=filtSnap.reduce((s,d)=>s+d.lostSku,0), totLostValAll=filtSnap.reduce((s,d)=>s+d.lostValue,0);
+  const totFoundQtyAll=filtSnap.reduce((s,d)=>s+d.foundQty,0), totFoundSkuAll=filtSnap.reduce((s,d)=>s+d.foundSku,0), totFoundValAll=filtSnap.reduce((s,d)=>s+d.foundValue,0);
+  const totRecQty=totLostQtyAll>0?Math.round(totFoundQtyAll/totLostQtyAll*100):0;
+  const totRecQtyCls=totRecQty>=80?'pct-high':totRecQty>=50?'pct-mid':'pct-low';
+  const snapRows = filtSnap.map(d=>{const recQCls=d.recoveryQty>=80?'pct-high':d.recoveryQty>=50?'pct-mid':d.recoveryQty>0?'pct-low':'zero';return`<tr><td style="font-weight:600;color:#0f172a">${d.dateStr}</td><td style="color:#ef4444;font-weight:600">${d.lostQty.toLocaleString('id-ID')}</td><td style="color:#ef4444">${d.lostSku.toLocaleString('id-ID')}</td><td style="color:#ef4444">${fmtRp(d.lostValue)}</td><td style="color:#10b981;font-weight:600">${d.foundQty.toLocaleString('id-ID')}</td><td style="color:#10b981">${d.foundSku.toLocaleString('id-ID')}</td><td style="color:#10b981">${fmtRp(d.foundValue)}</td><td class="${recQCls}">${d.recoveryQty}%</td></tr>`;}).join('');
+  const detailRows = filtFound.slice(0,200).map(r=>`<tr><td>${r.dateStr}</td><td style="font-size:10px">${r.sku}</td><td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.product}">${r.product}</td><td>${r.qty}</td><td style="font-size:10px;color:#1d4ed8;font-weight:600">${r.pic}</td><td style="font-size:10px">${r.sourceFinding}</td><td style="font-size:10px">${r.lokasiTemuan}</td><td style="font-size:10px">${r.remaks.includes('CYCLE')||r.remaks.includes('cycle')?`<span class="badge badge-blue">${r.remaks}</span>`:r.remaks}</td><td style="text-align:right;color:#10b981;font-weight:600">${fmtRp(r.valueAll)}</td></tr>`).join('');
 
   document.getElementById('content').innerHTML = `
   ${dateRangeBadge()}
   <div style="display:flex;gap:8px;margin-bottom:16px;">
-    <button onclick="ldpFoundTab='found';renderLdpFound()" style="padding:6px 16px;font-size:11px;font-weight:600;border-radius:8px;border:1px solid #e2e8f0;cursor:pointer;background:${ldpFoundTab==='found'?'#1d4ed8':'#f8fafc'};color:${ldpFoundTab==='found'?'#fff':'#64748b'}">✅ LDP Found</button>
-    <button onclick="ldpFoundTab='report';renderLostReport()" style="padding:6px 16px;font-size:11px;font-weight:600;border-radius:8px;border:1px solid #e2e8f0;cursor:pointer;background:${ldpFoundTab==='report'?'#1d4ed8':'#f8fafc'};color:${ldpFoundTab==='report'?'#fff':'#64748b'}">📊 Source Lost</button>
+    <button onclick="ldpFoundTab='found';renderLdpFound()" style="padding:6px 16px;font-size:11px;font-weight:600;border-radius:8px;border:1px solid #e2e8f0;cursor:pointer;background:#1d4ed8;color:#fff">✅ LDP Found</button>
+    <button onclick="ldpFoundTab='report';renderLostReport()" style="padding:6px 16px;font-size:11px;font-weight:600;border-radius:8px;border:1px solid #e2e8f0;cursor:pointer;background:#f8fafc;color:#64748b">📊 Source Lost</button>
   </div>
-  <div class="chart-card">
-    <div class="chart-title">Daily Snapshot — Lost vs Found (Qty)</div>
-    <div class="chart-wrap" style="height:280px"><canvas id="lf_c1"></canvas></div>
-  </div>
-
+  <div class="chart-card"><div class="chart-title">Daily Snapshot — Lost vs Found (Qty)</div><div class="chart-wrap" style="height:280px"><canvas id="lf_c1"></canvas></div></div>
   <div class="chart-grid-2">
-    <div class="chart-card">
-      <div class="chart-title">Top PIC — Value Recovered</div>
-      <div class="chart-wrap" style="height:${Math.max(topPic.length*36+60,180)}px"><canvas id="lf_c2"></canvas></div>
-    </div>
-    <div class="chart-card">
-      <div class="chart-title">Source Finding — Value Recovered</div>
-      <div class="chart-wrap" style="height:${Math.max(topSrc.length*36+60,180)}px"><canvas id="lf_c3"></canvas></div>
-    </div>
+    <div class="chart-card"><div class="chart-title">Top PIC — Value Recovered</div><div class="chart-wrap" style="height:${Math.max(topPic.length*36+60,180)}px"><canvas id="lf_c2"></canvas></div></div>
+    <div class="chart-card"><div class="chart-title">Source Finding — Value Recovered</div><div class="chart-wrap" style="height:${Math.max(topSrc.length*36+60,180)}px"><canvas id="lf_c3"></canvas></div></div>
   </div>
-
-  <div class="section-title">📅 Daily Snapshot — Lost vs Found</div>
-  <div class="table-card">
-    <div class="table-header"><span>Perbandingan Harian LDP vs LDP Found</span><span style="font-size:10px;color:#94a3b8">${filtSnap.length} hari</span></div>
-    <div class="overview-table-wrap">
-      <table class="overview-table" style="min-width:700px">
-        <thead><tr>
-          <th style="text-align:left">Date</th>
-          <th style="color:#ef4444">Lost Qty</th>
-          <th style="color:#ef4444">Lost SKU</th>
-          <th style="color:#ef4444">Lost Value</th>
-          <th style="color:#10b981">Qty Found</th>
-          <th style="color:#10b981">SKU Found</th>
-          <th style="color:#10b981">Value Found</th>
-          <th>Recovery%</th>
-        </tr></thead>
-        <tbody>${snapRows}</tbody>
-        <tfoot><tr>
-          <td>TOTAL</td>
-          <td style="color:#ef4444;font-weight:700">${totLostQtyAll.toLocaleString('id-ID')}</td>
-          <td style="color:#ef4444;font-weight:700">${totLostSkuAll.toLocaleString('id-ID')}</td>
-          <td style="color:#ef4444;font-weight:700">${fmtRp(totLostValAll)}</td>
-          <td style="color:#10b981;font-weight:700">${totFoundQtyAll.toLocaleString('id-ID')}</td>
-          <td style="color:#10b981;font-weight:700">${totFoundSkuAll.toLocaleString('id-ID')}</td>
-          <td style="color:#10b981;font-weight:700">${fmtRp(totFoundValAll)}</td>
-          <td class="${totRecQtyCls}">${totRecQty}%</td>
-        </tr></tfoot>
-      </table>
-    </div>
-  </div>
-
+  <div class="section-title">📅 Daily Snapshot</div>
+  <div class="table-card"><div class="table-header"><span>LDP vs LDP Found</span><span style="font-size:10px;color:#94a3b8">${filtSnap.length} hari</span></div>
+  <div class="overview-table-wrap"><table class="overview-table" style="min-width:700px"><thead><tr><th style="text-align:left">Date</th><th style="color:#ef4444">Lost Qty</th><th style="color:#ef4444">Lost SKU</th><th style="color:#ef4444">Lost Value</th><th style="color:#10b981">Qty Found</th><th style="color:#10b981">SKU Found</th><th style="color:#10b981">Value Found</th><th>Recovery%</th></tr></thead>
+  <tbody>${snapRows}</tbody><tfoot><tr><td>TOTAL</td><td style="color:#ef4444;font-weight:700">${totLostQtyAll.toLocaleString('id-ID')}</td><td style="color:#ef4444;font-weight:700">${totLostSkuAll.toLocaleString('id-ID')}</td><td style="color:#ef4444;font-weight:700">${fmtRp(totLostValAll)}</td><td style="color:#10b981;font-weight:700">${totFoundQtyAll.toLocaleString('id-ID')}</td><td style="color:#10b981;font-weight:700">${totFoundSkuAll.toLocaleString('id-ID')}</td><td style="color:#10b981;font-weight:700">${fmtRp(totFoundValAll)}</td><td class="${totRecQtyCls}">${totRecQty}%</td></tr></tfoot></table></div></div>
   <div class="section-title">📋 Detail Item Ketemu (max 200)</div>
-  <div class="table-card">
-    <div class="table-header"><span>LDP Found — Detail</span><span style="font-size:10px;color:#94a3b8">${filtFound.length} items · ${filtSnap.length} hari</span></div>
-    <div class="ib-table-wrap">
-      <table class="ib-table">
-        <thead><tr class="th-labels">
-          <th>Tanggal</th><th>SKU</th><th>Product</th><th>Qty</th>
-          <th>PIC</th><th>Source Finding</th><th>Lokasi Temuan</th><th>Remaks</th><th>Value</th>
-        </tr></thead>
-        <tbody>${detailRows}</tbody>
-      </table>
-    </div>
-  </div>`;
+  <div class="table-card"><div class="table-header"><span>LDP Found — Detail</span><span style="font-size:10px;color:#94a3b8">${filtFound.length} items</span></div>
+  <div class="ib-table-wrap"><table class="ib-table"><thead><tr class="th-labels"><th>Tanggal</th><th>SKU</th><th>Product</th><th>Qty</th><th>PIC</th><th>Source Finding</th><th>Lokasi Temuan</th><th>Remaks</th><th>Value</th></tr></thead><tbody>${detailRows}</tbody></table></div></div>`;
 
   setTimeout(() => {
-    // Daily Lost vs Found bar+line
     new Chart(document.getElementById('lf_c1').getContext('2d'), {
-      data: { labels: filtSnap.map(d=>d.dateStr), datasets: [
-        { type:'bar', label:'Lost Qty', data: filtSnap.map(d=>d.lostQty), backgroundColor:'#ef444466', borderColor:'#ef4444', borderWidth:2, borderRadius:6, yAxisID:'y',
-          datalabels:{anchor:'end',align:'end',color:'#ef4444',font:{size:9,weight:'700'},formatter:v=>v>0?String(v):''} },
-        { type:'bar', label:'Found Qty', data: filtSnap.map(d=>d.foundQty), backgroundColor:'#10b98166', borderColor:'#10b981', borderWidth:2, borderRadius:6, yAxisID:'y',
-          datalabels:{anchor:'end',align:'end',color:'#10b981',font:{size:9,weight:'700'},formatter:v=>v>0?String(v):''} },
-        { type:'line', label:'Recovery Rate %', data: filtSnap.map(d=>d.recoveryQty), borderColor:COLOR_PCT, backgroundColor:'#fef3c7', borderWidth:3, pointRadius:6, pointBackgroundColor:COLOR_PCT, tension:0.3, yAxisID:'y2', fill:false,
-          datalabels:{align:'top',color:COLOR_PCT,font:{size:9,weight:'700'},formatter:v=>v>0?v+'%':''} }
+      data:{labels:filtSnap.map(d=>d.dateStr),datasets:[
+        {type:'bar',label:'Lost Qty',data:filtSnap.map(d=>d.lostQty),backgroundColor:'#ef444466',borderColor:'#ef4444',borderWidth:2,borderRadius:6,yAxisID:'y',datalabels:{anchor:'end',align:'end',color:'#ef4444',font:{size:9,weight:'700'},formatter:v=>v>0?String(v):''}},
+        {type:'bar',label:'Found Qty',data:filtSnap.map(d=>d.foundQty),backgroundColor:'#10b98166',borderColor:'#10b981',borderWidth:2,borderRadius:6,yAxisID:'y',datalabels:{anchor:'end',align:'end',color:'#10b981',font:{size:9,weight:'700'},formatter:v=>v>0?String(v):''}},
+        {type:'line',label:'Recovery Rate %',data:filtSnap.map(d=>d.recoveryQty),borderColor:COLOR_PCT,backgroundColor:'#fef3c7',borderWidth:3,pointRadius:6,pointBackgroundColor:COLOR_PCT,tension:0.3,yAxisID:'y2',fill:false,datalabels:{align:'top',color:COLOR_PCT,font:{size:9,weight:'700'},formatter:v=>v>0?v+'%':''}}
       ]},
-      options:{ responsive:true, maintainAspectRatio:false, interaction:{mode:'index',intersect:false}, layout:{padding:{top:24}},
-        plugins:{ legend:{labels:{color:'#475569',font:{size:11},boxWidth:12}} },
-        scales:{
-          x:{ticks:{color:'#64748b',font:{size:10},maxRotation:45},grid:{color:'#f1f5f9'}},
-          y:{position:'left',ticks:{color:'#64748b',font:{size:10}},grid:{color:'#f1f5f9'}},
-          y2:{position:'right',min:0,max:130,ticks:{color:COLOR_PCT,font:{size:10},callback:v=>v+'%'},grid:{drawOnChartArea:false}}
-        }
-      }
+      options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},layout:{padding:{top:24}},
+        plugins:{legend:{labels:{color:'#475569',font:{size:11},boxWidth:12}}},
+        scales:{x:{ticks:{color:'#64748b',font:{size:10},maxRotation:45},grid:{color:'#f1f5f9'}},y:{position:'left',ticks:{color:'#64748b',font:{size:10}},grid:{color:'#f1f5f9'}},y2:{position:'right',min:0,max:130,ticks:{color:COLOR_PCT,font:{size:10},callback:v=>v+'%'},grid:{drawOnChartArea:false}}}}
     });
-
-    // Top PIC horizontal bar
     new Chart(document.getElementById('lf_c2').getContext('2d'), {
-      type:'bar',
-      data:{ labels: topPic.map(v=>v[0].length>22?v[0].slice(0,22)+'…':v[0]),
-        datasets:[{ data: topPic.map(v=>Math.round(v[1].value)), backgroundColor:'#10b98166', borderColor:'#10b981', borderWidth:2, borderRadius:6,
-          datalabels:{anchor:'end',align:'right',color:'#10b981',font:{size:9,weight:'700'},formatter:v=>fmtRp(v)} }]
-      },
-      options:{ responsive:true, maintainAspectRatio:false, indexAxis:'y', layout:{padding:{right:80}},
-        plugins:{legend:{display:false}},
-        scales:{ x:{ticks:{color:'#94a3b8',font:{size:9},callback:v=>v>=1000000?'Rp '+(v/1000000).toFixed(1)+'jt':'Rp '+(v/1000).toFixed(0)+'rb'},grid:{color:'#f1f5f9'}},
-          y:{ticks:{color:'#475569',font:{size:9}},grid:{display:false}} }
-      }
+      type:'bar',data:{labels:topPic.map(v=>v[0].length>22?v[0].slice(0,22)+'…':v[0]),datasets:[{data:topPic.map(v=>Math.round(v[1].value)),backgroundColor:'#10b98166',borderColor:'#10b981',borderWidth:2,borderRadius:6,datalabels:{anchor:'end',align:'right',color:'#10b981',font:{size:9,weight:'700'},formatter:v=>fmtRp(v)}}]},
+      options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',layout:{padding:{right:80}},plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#94a3b8',font:{size:9},callback:v=>v>=1000000?'Rp '+(v/1000000).toFixed(1)+'jt':'Rp '+(v/1000).toFixed(0)+'rb'},grid:{color:'#f1f5f9'}},y:{ticks:{color:'#475569',font:{size:9}},grid:{display:false}}}}
     });
-
-    // Source finding bar
     new Chart(document.getElementById('lf_c3').getContext('2d'), {
-      type:'bar',
-      data:{ labels: topSrc.map(v=>v[0].length>25?v[0].slice(0,25)+'…':v[0]),
-        datasets:[{ data: topSrc.map(v=>Math.round(v[1].value)), backgroundColor:'#378ADD66', borderColor:'#378ADD', borderWidth:2, borderRadius:6,
-          datalabels:{anchor:'end',align:'right',color:'#378ADD',font:{size:9,weight:'700'},formatter:v=>fmtRp(v)} }]
-      },
-      options:{ responsive:true, maintainAspectRatio:false, indexAxis:'y', layout:{padding:{right:80}},
-        plugins:{legend:{display:false}},
-        scales:{ x:{ticks:{color:'#94a3b8',font:{size:9},callback:v=>v>=1000000?'Rp '+(v/1000000).toFixed(1)+'jt':'Rp '+(v/1000).toFixed(0)+'rb'},grid:{color:'#f1f5f9'}},
-          y:{ticks:{color:'#475569',font:{size:9}},grid:{display:false}} }
-      }
+      type:'bar',data:{labels:topSrc.map(v=>v[0].length>25?v[0].slice(0,25)+'…':v[0]),datasets:[{data:topSrc.map(v=>Math.round(v[1].value)),backgroundColor:'#378ADD66',borderColor:'#378ADD',borderWidth:2,borderRadius:6,datalabels:{anchor:'end',align:'right',color:'#378ADD',font:{size:9,weight:'700'},formatter:v=>fmtRp(v)}}]},
+      options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',layout:{padding:{right:80}},plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#94a3b8',font:{size:9},callback:v=>v>=1000000?'Rp '+(v/1000000).toFixed(1)+'jt':'Rp '+(v/1000).toFixed(0)+'rb'},grid:{color:'#f1f5f9'}},y:{ticks:{color:'#475569',font:{size:9}},grid:{display:false}}}}
     });
   }, 50);
 }
 
-// ══════════════════════════════════════════════════════════════════════════════
-// SOURCE LOST REPORT
-// ══════════════════════════════════════════════════════════════════════════════
-
 async function renderLostReport() {
   if (!globalLostReport) {
-    document.getElementById('content').innerHTML = '<div class="loading">Loading Source Lost Report<span class="dot">.</span><span class="dot">.</span><span class="dot">.</span></div>';
-    try {
-      globalLostReport = await fetch('/api/lost-report').then(r => r.json());
-    } catch(e) {
-      document.getElementById('content').innerHTML = `<div class="loading">Error: ${e.message}</div>`;
-      return;
-    }
+    document.getElementById('content').innerHTML = '<div class="loading">Loading Source Lost<span class="dot">.</span><span class="dot">.</span><span class="dot">.</span></div>';
+    try { globalLostReport = await fetch('/api/lost-report').then(r => r.json()); }
+    catch(e) { document.getElementById('content').innerHTML = `<div class="loading">Error: ${e.message}</div>`; return; }
   }
-
   const { dates, sources } = globalLostReport;
-
   const { from, to } = getFromTo();
-  const filtDates = dates.filter(d => {
-    if (from && d.isoDate < from) return false;
-    if (to   && d.isoDate > to)   return false;
-    return true;
-  });
-
-  // Aggregate per source (filtered dates only)
-  const sourcesFiltered = sources.map(s => {
-    const total = filtDates.reduce((sum, d) => sum + (s.daily[d.isoDate] || 0), 0);
-    return { ...s, filtTotal: total };
-  }).filter(s => s.filtTotal > 0 || s.total > 0);
-
-  const grandTotal = sourcesFiltered.reduce((sum, s) => sum + s.filtTotal, 0);
-
-  // Chart data — top sources
-  const topSources = [...sourcesFiltered].sort((a,b) => b.filtTotal - a.filtTotal).slice(0,10);
-
-  // Tab bar
-  const tabBar = `<div style="display:flex;gap:8px;margin-bottom:16px;">
-    <button onclick="ldpFoundTab='found';destroyCharts();renderLdpFound()" style="padding:6px 16px;font-size:11px;font-weight:600;border-radius:8px;border:1px solid #e2e8f0;cursor:pointer;background:#f8fafc;color:#64748b">✅ LDP Found</button>
-    <button onclick="ldpFoundTab='report';renderLostReport()" style="padding:6px 16px;font-size:11px;font-weight:600;border-radius:8px;border:1px solid #e2e8f0;cursor:pointer;background:#1d4ed8;color:#fff">📊 Source Lost</button>
-  </div>`;
-
-  // Table rows
-  const tableRows = sourcesFiltered.map(s => {
-    const pctFiltered = grandTotal > 0 ? (s.filtTotal / grandTotal * 100).toFixed(1) : '0.0';
-    const pctOriginal = (s.pct * 100).toFixed(2);
-    return `<tr>
-      <td style="font-weight:600;color:#0f172a">${s.name}</td>
-      <td style="color:#ef4444;font-weight:600;text-align:right">${s.filtTotal.toLocaleString('id-ID')}</td>
-      <td style="text-align:right">${pctFiltered}%</td>
-      <td style="text-align:right;color:#94a3b8">${s.total.toLocaleString('id-ID')}</td>
-    </tr>`;
-  }).join('');
-
-  // Daily table
-  const dateHeaders = filtDates.map(d => `<th>${d.dateStr.slice(0,5)}</th>`).join('');
-  const dailyRows = sourcesFiltered.map(s => {
-    const cells = filtDates.map(d => {
-      const v = s.daily[d.isoDate] || 0;
-      return `<td>${v > 0 ? v.toLocaleString('id-ID') : '<span class="zero">-</span>'}</td>`;
-    }).join('');
-    return `<tr><td style="font-weight:600;color:#334155">${s.name}</td>${cells}<td style="font-weight:700;color:#ef4444">${s.filtTotal.toLocaleString('id-ID')}</td></tr>`;
-  }).join('');
+  const filtDates = dates.filter(d=>{if(from&&d.isoDate<from)return false;if(to&&d.isoDate>to)return false;return true;});
+  const sourcesFiltered = sources.map(s=>{ const total=filtDates.reduce((sum,d)=>sum+(s.daily[d.isoDate]||0),0); return{...s,filtTotal:total}; }).filter(s=>s.filtTotal>0||s.total>0);
+  const grandTotal = sourcesFiltered.reduce((sum,s)=>sum+s.filtTotal,0);
+  const topSources = [...sourcesFiltered].sort((a,b)=>b.filtTotal-a.filtTotal).slice(0,10);
+  const tabBar = `<div style="display:flex;gap:8px;margin-bottom:16px;"><button onclick="ldpFoundTab='found';destroyCharts();renderLdpFound()" style="padding:6px 16px;font-size:11px;font-weight:600;border-radius:8px;border:1px solid #e2e8f0;cursor:pointer;background:#f8fafc;color:#64748b">✅ LDP Found</button><button onclick="ldpFoundTab='report';renderLostReport()" style="padding:6px 16px;font-size:11px;font-weight:600;border-radius:8px;border:1px solid #e2e8f0;cursor:pointer;background:#1d4ed8;color:#fff">📊 Source Lost</button></div>`;
+  const tableRows = sourcesFiltered.map(s=>`<tr><td style="font-weight:600;color:#0f172a">${s.name}</td><td style="color:#ef4444;font-weight:600;text-align:right">${s.filtTotal.toLocaleString('id-ID')}</td><td style="text-align:right">${grandTotal>0?(s.filtTotal/grandTotal*100).toFixed(1):'0.0'}%</td><td style="text-align:right;color:#94a3b8">${s.total.toLocaleString('id-ID')}</td></tr>`).join('');
+  const dateHeaders = filtDates.map(d=>`<th>${d.dateStr.slice(0,5)}</th>`).join('');
+  const dailyRows = sourcesFiltered.map(s=>`<tr>${filtDates.map(d=>{const v=s.daily[d.isoDate]||0;return`<td>${v>0?v.toLocaleString('id-ID'):'<span class="zero">-</span>'}</td>`;}).join('')}<td style="font-weight:700;color:#ef4444">${s.filtTotal.toLocaleString('id-ID')}</td></tr>`).join('');
 
   document.getElementById('content').innerHTML = `
-  ${dateRangeBadge()}
-  ${tabBar}
-
+  ${dateRangeBadge()}${tabBar}
   <div class="kpi-row-3">
     <div class="kpi-card"><div class="kl">Total Lost (filtered)</div><div class="kv c-red">${grandTotal.toLocaleString('id-ID')}</div><div class="ks">semua source</div></div>
     <div class="kpi-card"><div class="kl">Jumlah Source</div><div class="kv">${sourcesFiltered.length}</div><div class="ks">source aktif</div></div>
     <div class="kpi-card"><div class="kl">Periode</div><div class="kv" style="font-size:14px">${filtDates.length} hari</div><div class="ks">tanggal dipilih</div></div>
   </div>
-
-  <div class="chart-card">
-    <div class="chart-title">Top Source Lost — Qty per Source</div>
-    <div class="chart-wrap" style="height:${Math.max(topSources.length*36+60,180)}px"><canvas id="lr_c1"></canvas></div>
-  </div>
-
+  <div class="chart-card"><div class="chart-title">Top Source Lost — Qty per Source</div><div class="chart-wrap" style="height:${Math.max(topSources.length*36+60,180)}px"><canvas id="lr_c1"></canvas></div></div>
   <div class="section-title">📋 Summary per Source</div>
-  <div class="table-card">
-    <div class="table-header"><span>Source Lost — Total</span><span style="font-size:10px;color:#94a3b8">${filtDates.length} hari · ${sourcesFiltered.length} source</span></div>
-    <div class="overview-table-wrap">
-      <table class="overview-table" style="min-width:500px">
-        <thead><tr>
-          <th style="text-align:left">Source</th>
-          <th>Qty (filtered)</th><th>%</th><th>Total All</th>
-        </tr></thead>
-        <tbody>${tableRows}</tbody>
-        <tfoot><tr>
-          <td>TOTAL</td>
-          <td style="color:#ef4444;font-weight:700;text-align:right">${grandTotal.toLocaleString('id-ID')}</td>
-          <td style="text-align:right">100%</td>
-          <td style="text-align:right;color:#94a3b8">${sources.reduce((s,x)=>s+x.total,0).toLocaleString('id-ID')}</td>
-        </tr></tfoot>
-      </table>
-    </div>
-  </div>
-
+  <div class="table-card"><div class="table-header"><span>Source Lost — Total</span></div><div class="overview-table-wrap"><table class="overview-table" style="min-width:500px"><thead><tr><th style="text-align:left">Source</th><th>Qty (filtered)</th><th>%</th><th>Total All</th></tr></thead><tbody>${tableRows}</tbody><tfoot><tr><td>TOTAL</td><td style="color:#ef4444;font-weight:700;text-align:right">${grandTotal.toLocaleString('id-ID')}</td><td style="text-align:right">100%</td><td style="text-align:right;color:#94a3b8">${sources.reduce((s,x)=>s+x.total,0).toLocaleString('id-ID')}</td></tr></tfoot></table></div></div>
   <div class="section-title">📅 Detail per Hari</div>
-  <div class="table-card">
-    <div class="table-header"><span>Source Lost — Daily</span><span style="font-size:10px;color:#94a3b8">scroll →</span></div>
-    <div class="table-container">
-      <div class="frozen-left">
-        <table><thead><tr><th>Source</th></tr></thead>
-          <tbody>${sourcesFiltered.map(s=>`<tr><td>${s.name}</td></tr>`).join('')}</tbody>
-        </table>
-      </div>
-      <div class="scroll-right">
-        <table><thead><tr>${dateHeaders}<th>Total</th></tr></thead>
-          <tbody>${dailyRows}</tbody>
-        </table>
-      </div>
-    </div>
-  </div>`;
+  <div class="table-card"><div class="table-header"><span>Source Lost — Daily</span><span style="font-size:10px;color:#94a3b8">scroll →</span></div>
+  <div class="table-container">
+    <div class="frozen-left"><table><thead><tr><th>Source</th></tr></thead><tbody>${sourcesFiltered.map(s=>`<tr><td>${s.name}</td></tr>`).join('')}</tbody></table></div>
+    <div class="scroll-right"><table><thead><tr>${dateHeaders}<th>Total</th></tr></thead><tbody>${dailyRows}</tbody></table></div>
+  </div></div>`;
 
   setTimeout(() => {
     new Chart(document.getElementById('lr_c1').getContext('2d'), {
-      type: 'bar',
-      data: {
-        labels: topSources.map(s => s.name.length > 30 ? s.name.slice(0,30)+'…' : s.name),
-        datasets: [{ data: topSources.map(s => s.filtTotal), backgroundColor: '#ef444466', borderColor: '#ef4444', borderWidth: 2, borderRadius: 6,
-          datalabels: { anchor:'end', align:'right', color:'#ef4444', font:{size:9,weight:'700'}, formatter: v => v.toLocaleString('id-ID') } }]
-      },
-      options: { responsive:true, maintainAspectRatio:false, indexAxis:'y', layout:{padding:{right:60}},
-        plugins: { legend:{display:false} },
-        scales: {
-          x: { ticks:{color:'#94a3b8',font:{size:9}}, grid:{color:'#f1f5f9'} },
-          y: { ticks:{color:'#475569',font:{size:9}}, grid:{display:false} }
-        }
-      }
+      type:'bar', data:{labels:topSources.map(s=>s.name.length>30?s.name.slice(0,30)+'…':s.name),datasets:[{data:topSources.map(s=>s.filtTotal),backgroundColor:'#ef444466',borderColor:'#ef4444',borderWidth:2,borderRadius:6,datalabels:{anchor:'end',align:'right',color:'#ef4444',font:{size:9,weight:'700'},formatter:v=>v.toLocaleString('id-ID')}}]},
+      options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',layout:{padding:{right:60}},plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#94a3b8',font:{size:9}},grid:{color:'#f1f5f9'}},y:{ticks:{color:'#475569',font:{size:9}},grid:{display:false}}}}
     });
   }, 50);
 }
 
 async function loadData() {
-  globalPutaway = null;
-  globalTroubleshoot = null;
-  globalLost = null;
-  globalLostFound = null;
-  globalLostReport = null;
+  globalPutaway = null; globalTroubleshoot = null; globalLost = null;
+  globalLostFound = null; globalLostReport = null; globalGrouper = null;
   document.getElementById('content').innerHTML = '<div class="loading">Loading<span class="dot">.</span><span class="dot">.</span><span class="dot">.</span></div>';
   try {
-    if (currentPage === 'putaway') {
-      await renderPutaway();
-    } else {
+    if (currentPage === 'putaway') { await renderPutaway(); }
+    else if (currentPage === 'grouper') { await renderGrouper(); }
+    else {
       const [r1, r2, r3] = await Promise.all([
         fetch('/api/data').then(r=>r.json()),
         fetch('/api/rekap').then(r=>r.json()),

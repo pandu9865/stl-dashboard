@@ -259,6 +259,8 @@ let ibActiveTab    = 'po';
 
 let globalPutaway      = null;
 let globalTroubleshoot = null;
+let globalTsRegulerReport = null;
+let tsRegulerTab = 'weekly'; // 'weekly' | 'zona'
 let globalGrouper      = null;
 
 const SECTION_KEYS = ['ss-putaway','replenish-system','safety-stock','param-manual','milkrun'];
@@ -1236,6 +1238,10 @@ function tsChartOpts(hasPct=true) {
 }
 
 async function renderTsSection(sectionKey) {
+  if (sectionKey === 'reguler') {
+    renderTsReguler();
+    return;
+  }
   const ok = await ensureTsData(); if (!ok) return;
   const { dates, metrics } = globalTroubleshoot;
   const sec = TS_SECTIONS[sectionKey];
@@ -1732,9 +1738,249 @@ async function renderLostReport() {
   }, 50);
 }
 
+
+// ══════════════════════════════════════════════════════════════════════════════
+// TS REGULER — 2 TAB (Weekly Report + Daily Zona)
+// ══════════════════════════════════════════════════════════════════════════════
+
+function tsRegulerTabBar() {
+  return `<div style="display:flex;gap:8px;margin-bottom:16px;">
+    <button onclick="tsRegulerTab='weekly';renderTsReguler()" style="padding:6px 16px;font-size:11px;font-weight:600;border-radius:8px;border:1px solid #e2e8f0;cursor:pointer;background:${tsRegulerTab==='weekly'?'#1d4ed8':'#f8fafc'};color:${tsRegulerTab==='weekly'?'#fff':'#64748b'}">📋 Weekly Report</button>
+    <button onclick="tsRegulerTab='zona';renderTsReguler()" style="padding:6px 16px;font-size:11px;font-weight:600;border-radius:8px;border:1px solid #e2e8f0;cursor:pointer;background:${tsRegulerTab==='zona'?'#1d4ed8':'#f8fafc'};color:${tsRegulerTab==='zona'?'#fff':'#64748b'}">🗺️ Daily Zona</button>
+  </div>`;
+}
+
+async function renderTsReguler() {
+  if (!globalTsRegulerReport) {
+    document.getElementById('content').innerHTML = '<div class="loading">Loading Task Reguler<span class="dot">.</span><span class="dot">.</span><span class="dot">.</span></div>';
+    try { globalTsRegulerReport = await fetch('/api/ts-reguler-report').then(r => r.json()); }
+    catch(e) { document.getElementById('content').innerHTML = `<div class="loading">Error: ${e.message}</div>`; return; }
+  }
+  destroyCharts();
+  if (tsRegulerTab === 'zona') { renderTsRegulerZona(); return; }
+  renderTsRegulerWeekly();
+}
+
+function renderTsRegulerWeekly() {
+  const d = globalTsRegulerReport;
+  const { weekLabel, dates, kpi, remarks, mandays, avgProd, issues } = d;
+  const fmtN = v => (v === null || v === undefined) ? '-' : Number(v).toLocaleString('id-ID');
+  const fmtPct = v => (v === null || v === undefined || v === 0) ? '-' : (v < 1 ? (v*100).toFixed(2)+'%' : v.toFixed(2)+'%');
+  const dateHeaders = dates.map(d => `<th>${d}</th>`).join('');
+
+  // KPI Cards
+  const skuShortage = kpi.find(k=>k.label==='SKU Shortage');
+  const doneSku     = kpi.find(k=>k.label==='Done SKU');
+  const doneQty     = kpi.find(k=>k.label==='Done Qty');
+  const frPct       = kpi.find(k=>k.label==='FR%');
+  const sumSO       = kpi.find(k=>k.label==='Sum Request SO');
+  const frVal       = frPct?.weekTotal;
+  const frDisplay   = frVal ? (frVal < 1 ? (frVal*100).toFixed(2)+'%' : frVal.toFixed(2)+'%') : '-';
+  const frCls       = frVal > 0.8 ? 'c-green' : frVal > 0.5 ? 'c-yellow' : 'c-red';
+
+  // Remark rows dengan rowspan
+  const REMARK_COLORS = { 'Done':'#10b98115', 'Partial Pick':'#f59e0b15', 'Pick To Loss':'#ef444415', 'Cutt Off':'#8b5cf615', 'Pending':'#64748b15' };
+  const REMARK_TEXT   = { 'Done':'#10b981', 'Partial Pick':'#d97706', 'Pick To Loss':'#ef4444', 'Cutt Off':'#8b5cf6', 'Pending':'#64748b' };
+
+  const remarkRows = remarks.map(r => {
+    const color = REMARK_COLORS[r.label] || '#f8fafc';
+    const tcolor = REMARK_TEXT[r.label] || '#334155';
+    return r.waves.map((w, wi) => {
+      const isTotal = w.wave === 'Total';
+      const tdCat = wi === 0 ? `<td rowspan="5" style="font-weight:700;color:${tcolor};background:${color};border-right:2px solid #e2e8f0;white-space:nowrap">${r.label}</td>` : '';
+      const waveStyle = isTotal ? 'font-weight:700;background:#f1f5f9' : '';
+      const dayCells = w.daily.map(v => `<td style="${waveStyle}">${fmtN(v)}</td>`).join('');
+      const pctCell  = !isTotal && w.pctWeek !== null ? `<td style="color:#64748b;font-size:10px">${(w.pctWeek*100).toFixed(1)}%</td>` : (isTotal ? '<td></td>' : '<td>-</td>');
+      return `<tr>
+        ${tdCat}
+        <td style="${waveStyle};white-space:nowrap">${w.wave}</td>
+        ${dayCells}
+        <td style="${waveStyle};font-weight:${isTotal?700:500}">${isTotal?fmtN(w.weekTotal):fmtN(w.weekTotal)}</td>
+        ${pctCell}
+      </tr>`;
+    }).join('');
+  }).join('');
+
+  // Issue rows
+  const issueRows = issues.map(it => {
+    const dayCells = it.daily.map(v => `<td>${fmtN(v)}</td>`).join('');
+    const pctCell  = it.pctWeek !== null ? `<td style="color:#64748b;font-size:10px">${(it.pctWeek*100).toFixed(1)}%</td>` : '<td>-</td>';
+    return `<tr><td style="font-weight:600;color:#334155">${it.label}</td>${dayCells}<td style="font-weight:700">${fmtN(it.weekTotal)}</td>${pctCell}</tr>`;
+  }).join('');
+
+  document.getElementById('content').innerHTML = `
+  ${tsRegulerTabBar()}
+  <div class="section-page-header">
+    <h2>📋 Task Troubleshoot Reguler</h2>
+    <p>${weekLabel} · ${dates[0]} — ${dates[dates.length-1]}</p>
+  </div>
+
+  <div class="kpi-row">
+    <div class="kpi-card"><div class="kl">SKU Shortage</div><div class="kv">${fmtN(skuShortage?.weekTotal)}</div><div class="ks">total minggu ini</div></div>
+    <div class="kpi-card"><div class="kl">Done SKU</div><div class="kv c-green">${fmtN(doneSku?.weekTotal)}</div><div class="ks">SKU selesai</div></div>
+    <div class="kpi-card"><div class="kl">Done Qty</div><div class="kv c-orange">${fmtN(doneQty?.weekTotal)}</div><div class="ks">qty selesai</div></div>
+    <div class="kpi-card"><div class="kl">FR%</div><div class="kv ${frCls}">${frDisplay}</div><div class="ks">fill rate minggu ini</div></div>
+  </div>
+  <div class="kpi-row-3">
+    <div class="kpi-card"><div class="kl">Sum Request SO</div><div class="kv c-blue">${fmtN(sumSO?.weekTotal)}</div><div class="ks">total SO request</div></div>
+    <div class="kpi-card"><div class="kl">Mandays</div><div class="kv">${fmtN(mandays?.weekTotal)}</div><div class="ks">total MP days</div></div>
+    <div class="kpi-card"><div class="kl">Avg Prod/MP</div><div class="kv c-purple">${fmtN(avgProd?.weekTotal)}</div><div class="ks">produktivitas rata-rata</div></div>
+  </div>
+
+  <div class="section-title">📊 Remark Troubleshoot per Wave</div>
+  <div class="table-card">
+    <div class="table-header"><span>Daily Breakdown — ${weekLabel}</span><span style="font-size:10px;color:#94a3b8">scroll →</span></div>
+    <div class="overview-table-wrap">
+      <table class="overview-table" style="min-width:700px">
+        <thead><tr>
+          <th style="text-align:left;min-width:110px">Kategori</th>
+          <th style="text-align:left;min-width:80px">Wave</th>
+          ${dateHeaders}
+          <th style="background:#fffbeb;color:#92400e">${weekLabel}</th>
+          <th style="background:#fffbeb;color:#92400e">%</th>
+        </tr></thead>
+        <tbody>${remarkRows}</tbody>
+        <tfoot>
+          <tr><td colspan="2" style="font-weight:700">Mandays</td>${mandays.daily.map(v=>`<td style="font-weight:700">${fmtN(v)}</td>`).join('')}<td style="font-weight:700">${fmtN(mandays.weekTotal)}</td><td>-</td></tr>
+          <tr><td colspan="2" style="font-weight:700">Avg prod/MP</td>${avgProd.daily.map(v=>`<td style="font-weight:700">${fmtN(v)}</td>`).join('')}<td style="font-weight:700">${fmtN(avgProd.weekTotal)}</td><td>-</td></tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+
+  <div class="section-title">🏷️ Record Issue Type</div>
+  <div class="table-card">
+    <div class="table-header"><span>Issue Type per Hari</span></div>
+    <div class="overview-table-wrap">
+      <table class="overview-table" style="min-width:600px">
+        <thead><tr>
+          <th style="text-align:left;min-width:110px">Type</th>
+          ${dateHeaders}
+          <th style="background:#fffbeb;color:#92400e">${weekLabel}</th>
+          <th style="background:#fffbeb;color:#92400e">%</th>
+        </tr></thead>
+        <tbody>${issueRows}</tbody>
+      </table>
+    </div>
+  </div>`;
+}
+
+function renderTsRegulerZona() {
+  const d = globalTsRegulerReport;
+  const { weekLabel, zona } = d;
+  const fmtN = v => (!v || v === 0) ? '<span class="zero">-</span>' : Number(v).toLocaleString('id-ID');
+  const fmtPctZ = v => (!v || v === 0) ? '-' : (v*100).toFixed(2)+'%';
+
+  // Grand Total untuk KPI
+  const grandTotalIdx = zona.headers.length - 1;
+  const grandTotal = zona.total.values[grandTotalIdx];
+
+  // Wave KPI cards
+  const waveCards = zona.waves.map(w => {
+    const total = w.values[grandTotalIdx];
+    const pct   = grandTotal > 0 ? (total/grandTotal*100).toFixed(1) : 0;
+    return `<div class="kpi-card">
+      <div class="kl">${w.wave}</div>
+      <div class="kv c-blue">${Number(total).toLocaleString('id-ID')}</div>
+      <div class="ks">${pct}% dari grand total</div>
+    </div>`;
+  }).join('');
+
+  // Zona table rows
+  const zonaRows = zona.waves.map(w => {
+    const cells = w.values.map((v, i) => {
+      const isGrand = i === grandTotalIdx;
+      return `<td style="${isGrand?'font-weight:700;background:#f1f5f9':''}">${Number(v||0).toLocaleString('id-ID')}</td>`;
+    }).join('');
+    return `<tr><td style="font-weight:700;color:#1d4ed8">${w.wave}</td>${cells}</tr>`;
+  }).join('');
+
+  const totalCells = zona.total.values.map((v, i) => {
+    const isGrand = i === grandTotalIdx;
+    return `<td style="font-weight:700;${isGrand?'background:#fffbeb;color:#92400e':''}">${Number(v||0).toLocaleString('id-ID')}</td>`;
+  }).join('');
+
+  const pctCells = zona.pct.values.map(v => {
+    return `<td style="color:#64748b;font-size:10px">${v ? (v*100).toFixed(2)+'%' : '-'}</td>`;
+  }).join('');
+
+  const zonaHeaders = zona.headers.map((h, i) => {
+    const isGrand = i === grandTotalIdx;
+    return `<th style="${isGrand?'background:#fffbeb;color:#92400e':''}">${h}</th>`;
+  }).join('');
+
+  document.getElementById('content').innerHTML = `
+  ${tsRegulerTabBar()}
+  <div class="section-page-header">
+    <h2>🗺️ Daily Zona per Wave</h2>
+    <p>${weekLabel} · breakdown picking per area</p>
+  </div>
+
+  <div class="kpi-row">${waveCards}
+    <div class="kpi-card">
+      <div class="kl">Grand Total</div>
+      <div class="kv c-orange">${Number(grandTotal||0).toLocaleString('id-ID')}</div>
+      <div class="ks">semua wave & zona</div>
+    </div>
+  </div>
+
+  <div class="chart-card">
+    <div class="chart-title">Distribusi Zona — Qty per Wave</div>
+    <div class="chart-wrap" style="height:260px"><canvas id="zona_chart"></canvas></div>
+  </div>
+
+  <div class="section-title">📋 Detail Zona per Wave</div>
+  <div class="table-card">
+    <div class="table-header"><span>Picking Area Breakdown — ${weekLabel}</span><span style="font-size:10px;color:#94a3b8">scroll →</span></div>
+    <div class="overview-table-wrap">
+      <table class="overview-table" style="min-width:900px">
+        <thead><tr>
+          <th style="text-align:left;min-width:80px">Wave</th>
+          ${zonaHeaders}
+        </tr></thead>
+        <tbody>${zonaRows}</tbody>
+        <tfoot>
+          <tr><td style="font-weight:700">Total</td>${totalCells}</tr>
+          <tr><td style="font-weight:700;color:#64748b">%</td>${pctCells}</tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>`;
+
+  setTimeout(() => {
+    const ctx = document.getElementById('zona_chart');
+    if (!ctx) return;
+    const zonaLabels = zona.headers.slice(0, -1); // exclude Grand Total
+    const colors = ['#378ADD','#1D9E75','#EF9F27','#7F77DD'];
+    chartInstances['zona_chart'] = new Chart(ctx.getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: zonaLabels,
+        datasets: zona.waves.map((w, i) => ({
+          label: w.wave,
+          data:  w.values.slice(0, -1),
+          backgroundColor: colors[i] + '99',
+          borderColor:     colors[i],
+          borderWidth: 2,
+          borderRadius: 4,
+          datalabels: { anchor:'end', align:'end', color: colors[i], font:{size:8,weight:'700'}, formatter: v => v > 0 ? fmtShort(v) : '' }
+        }))
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false, layout:{padding:{top:20}},
+        interaction: {mode:'index',intersect:false},
+        plugins: { legend:{labels:{color:'#475569',font:{size:10},boxWidth:12}} },
+        scales: {
+          x: {ticks:{color:'#475569',font:{size:10}},grid:{display:false}},
+          y: {ticks:{color:'#64748b',font:{size:10},callback:v=>fmtShort(v)},grid:{color:'#f1f5f9'}}
+        }
+      }
+    });
+  }, 50);
+}
 async function loadData() {
   globalPutaway = null; globalTroubleshoot = null; globalLost = null;
-  globalLostFound = null; globalLostReport = null; globalGrouper = null;
+  globalLostFound = null; globalLostReport = null; globalGrouper = null; globalTsRegulerReport = null;
   document.getElementById('content').innerHTML = '<div class="loading">Loading<span class="dot">.</span><span class="dot">.</span><span class="dot">.</span></div>';
   try {
     if (currentPage === 'putaway') { await renderPutaway(); }

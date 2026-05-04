@@ -79,4 +79,13 @@ app.get('/api/grouper', async (req, res) => {
   } catch (err) { console.error('Grouper error:', err); res.status(500).json({ error: err.message }); }
 });
 
+
+app.get('/api/ts-reguler-report', async (req, res) => {
+  try {
+    const response = await fetch(APPS_SCRIPT_URL + '?action=ts-reguler-report', { redirect: 'follow' });
+    const data = await response.json();
+    res.json(data);
+  } catch (err) { console.error('TS Reguler Report error:', err); res.status(500).json({ error: err.message }); }
+});
+
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

@@ -260,7 +260,7 @@ let ibActiveTab    = 'po';
 let globalPutaway      = null;
 let globalTroubleshoot = null;
 let globalTsRegulerReport = null;
-let tsRegulerTab = 'weekly'; // 'weekly' | 'zona'
+let tsRegulerTab = 'daily'; // 'daily' | 'weekly' | 'zona'
 let globalGrouper      = null;
 
 const SECTION_KEYS = ['ss-putaway','replenish-system','safety-stock','param-manual','milkrun'];
@@ -1744,21 +1744,91 @@ async function renderLostReport() {
 // ══════════════════════════════════════════════════════════════════════════════
 
 function tsRegulerTabBar() {
+  const btn = (tab, label) => `<button onclick="tsRegulerTab='${tab}';renderTsReguler()" style="padding:6px 16px;font-size:11px;font-weight:600;border-radius:8px;border:1px solid #e2e8f0;cursor:pointer;background:${tsRegulerTab===tab?'#1d4ed8':'#f8fafc'};color:${tsRegulerTab===tab?'#fff':'#64748b'}">${label}</button>`;
   return `<div style="display:flex;gap:8px;margin-bottom:16px;">
-    <button onclick="tsRegulerTab='weekly';renderTsReguler()" style="padding:6px 16px;font-size:11px;font-weight:600;border-radius:8px;border:1px solid #e2e8f0;cursor:pointer;background:${tsRegulerTab==='weekly'?'#1d4ed8':'#f8fafc'};color:${tsRegulerTab==='weekly'?'#fff':'#64748b'}">📋 Weekly Report</button>
-    <button onclick="tsRegulerTab='zona';renderTsReguler()" style="padding:6px 16px;font-size:11px;font-weight:600;border-radius:8px;border:1px solid #e2e8f0;cursor:pointer;background:${tsRegulerTab==='zona'?'#1d4ed8':'#f8fafc'};color:${tsRegulerTab==='zona'?'#fff':'#64748b'}">🗺️ Daily Zona</button>
+    ${btn('daily','📊 Daily Metrics')}
+    ${btn('weekly','📋 Weekly Report')}
+    ${btn('zona','🗺️ Daily Zona')}
   </div>`;
 }
 
 async function renderTsReguler() {
+  destroyCharts();
+  // Tab Daily Metrics — pakai data troubleshoot yang lama
+  if (tsRegulerTab === 'daily') {
+    await renderTsRegulerDaily();
+    return;
+  }
+  // Tab Weekly Report & Zona — pakai data dari Reporting GSheet
   if (!globalTsRegulerReport) {
     document.getElementById('content').innerHTML = '<div class="loading">Loading Task Reguler<span class="dot">.</span><span class="dot">.</span><span class="dot">.</span></div>';
     try { globalTsRegulerReport = await fetch('/api/ts-reguler-report').then(r => r.json()); }
     catch(e) { document.getElementById('content').innerHTML = `<div class="loading">Error: ${e.message}</div>`; return; }
   }
-  destroyCharts();
   if (tsRegulerTab === 'zona') { renderTsRegulerZona(); return; }
   renderTsRegulerWeekly();
+}
+
+async function renderTsRegulerDaily() {
+  const ok = await ensureTsData(); if (!ok) return;
+  const { dates, metrics } = globalTroubleshoot;
+  const sec = TS_SECTIONS['reguler'];
+  const filteredDates = tsParseDates(dates);
+  const getMetric = label => metrics.find(m => m.label === label);
+  const secMetrics = sec.metrics.map(label => getMetric(label)).filter(Boolean);
+  const fcMetric   = getMetric(sec.fcLabel);
+  const actMetric  = getMetric(sec.actLabel);
+  const pctMetric  = getMetric(sec.pctLabel);
+  const lineMetric = pctMetric;
+  const sumD = m => m ? filteredDates.reduce((s,d)=>s+(m.daily[d]||0),0) : 0;
+  const totalFC  = Math.round(sumD(fcMetric));
+  const totalAct = Math.round(sumD(actMetric));
+  const fr = totalFC > 0 ? Math.round(totalAct/totalFC*100) : 0;
+  const frCls = fr>=95?'c-green':fr>=80?'c-yellow':fr>0?'c-red':'';
+  const dateHeaders = filteredDates.map(d=>`<th>${d}</th>`).join('');
+
+  document.getElementById('content').innerHTML = `
+  ${tsRegulerTabBar()}
+  <div class="section-page-header"><h2>Task Troubleshoot Reguler</h2></div>
+  <div class="kpi-row">
+    <div class="kpi-card"><div class="kl">Task Troubleshoot</div><div class="kv">${totalFC.toLocaleString('id-ID')}</div><div class="ks">total task</div></div>
+    <div class="kpi-card"><div class="kl">Actual Fullfill</div><div class="kv c-orange">${totalAct.toLocaleString('id-ID')}</div><div class="ks">total actual</div></div>
+    <div class="kpi-card"><div class="kl">Troubleshoot FR%</div><div class="kv ${frCls}">${fr?fr+'%':'-'}</div><div class="ks">Actual / Task</div></div>
+    <div class="kpi-card"><div class="kl">Total MP</div><div class="kv">${Math.round(sumD(getMetric('Actual MP (Troubleshoot)'))).toLocaleString('id-ID')}</div><div class="ks">total</div></div>
+  </div>
+  <div class="kpi-row" style="grid-template-columns:repeat(2,1fr)">
+    <div class="kpi-card"><div class="kl">Pick to Lost</div><div class="kv c-red">${Math.round(sumD(getMetric('Pick to Lost'))).toLocaleString('id-ID')}</div><div class="ks">total</div></div>
+    <div class="kpi-card"><div class="kl">Pick to Lost %</div><div class="kv c-red">${(()=>{const m=getMetric('Pick to Lost %');const vals=filteredDates.map(d=>m?.daily[d]).filter(v=>v!=null&&v>0);return vals.length?(vals.reduce((s,v)=>s+v,0)/vals.length).toFixed(1)+'%':'-';})()}</div><div class="ks">rata-rata harian</div></div>
+  </div>
+  <div class="chart-card">
+    <div class="chart-title">Task Troubleshoot Reguler — per hari</div>
+    <div class="chart-wrap" style="height:280px"><canvas id="ts_sec_chart"></canvas></div>
+  </div>
+  <div class="section-title">📋 Detail Metrics per Hari</div>
+  <div class="table-card">
+    <div class="table-header"><span>Daily Detail</span><span style="font-size:10px;color:#94a3b8">${filteredDates.length} hari · scroll →</span></div>
+    <div class="table-container">
+      <div class="frozen-left"><table><thead><tr><th>Metric</th></tr></thead><tbody>${secMetrics.map(m=>`<tr><td>${m.label}</td></tr>`).join('')}</tbody></table></div>
+      <div class="scroll-right"><table><thead><tr>${dateHeaders}</tr></thead>
+        <tbody>${secMetrics.map(m=>{
+          const cells=filteredDates.map(d=>{const v=m.daily[d];if(v===null||v===undefined)return`<td><span class="zero">-</span></td>`;if(m.isPct){const cls=v>=95?'pct-high':v>=80?'pct-mid':v>0?'pct-low':'zero';return`<td class="${cls}">${v.toFixed(1)}%</td>`;}return`<td class="${v>0?'':'zero'}">${v>0?Number(v).toLocaleString('id-ID'):'-'}</td>`;}).join('');
+          return`<tr>${cells}</tr>`;}).join('')}
+        </tbody>
+      </table></div>
+    </div>
+  </div>`;
+
+  setTimeout(() => {
+    const ctx = document.getElementById('ts_sec_chart'); if (!ctx) return;
+    chartInstances['ts_sec'] = new Chart(ctx.getContext('2d'), {
+      data:{ labels:filteredDates, datasets:[
+        { type:'bar', label:sec.fcLabel, data:filteredDates.map(d=>fcMetric?.daily[d]||0), backgroundColor:COLOR_FC_BG, borderColor:COLOR_FC, borderWidth:2, borderRadius:6, yAxisID:'y', datalabels:{anchor:'end',align:'end',color:COLOR_FC,font:{size:10,weight:'700'},formatter:fmtShort} },
+        { type:'bar', label:sec.actLabel, data:filteredDates.map(d=>actMetric?.daily[d]||0), backgroundColor:COLOR_ACT_BG, borderColor:COLOR_ACT, borderWidth:2, borderRadius:6, yAxisID:'y', datalabels:{anchor:'end',align:'end',color:COLOR_ACT,font:{size:10,weight:'700'},formatter:fmtShort} },
+        { type:'line', label:lineMetric?.label||'FR%', data:filteredDates.map(d=>lineMetric?.daily[d]??null), borderColor:COLOR_PCT, backgroundColor:'#fef3c7', borderWidth:3, pointRadius:6, pointBackgroundColor:COLOR_PCT, tension:0.3, yAxisID:'y2', fill:false, datalabels:{align:'top',color:COLOR_PCT,font:{size:10,weight:'700'},formatter:v=>v!=null?v.toFixed(1)+'%':''} }
+      ]},
+      options: tsChartOpts(true)
+    });
+  }, 50);
 }
 
 function renderTsRegulerWeekly() {

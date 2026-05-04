@@ -163,7 +163,7 @@
   .plan-table td.status-sesuai { color: #10b981; font-weight: 600; }
   .plan-table td.status-tidak { color: #ef4444; font-weight: 600; }
   .plan-table tr.zone-row-s { background: #f8fafc; }
-  .plan-table tr.zone-row-ts {}
+
   .plan-table tr.total-row td { font-weight: 700; background: #f1f5f9; border-top: 2px solid #e2e8f0; }
   .plan-table tr:hover td { background: #f0fdf4; }
   .plan-table tr.total-row:hover td { background: #f1f5f9; }
@@ -1341,7 +1341,7 @@ async function renderPutaway() {
     const cells = filteredDates.map(d => {
       const v = m.daily[d];
       if (v===null||v===undefined) return '<td><span class="zero">-</span></td>';
-      if (m.isPct) { const pct=v>1?v:v*100; const cls=pct>=95?'pct-high':pct>=80?'pct-mid':pct>0?'pct-low':'zero'; return`<td class="${cls}">${Math.round(pct)}%</td>`; }
+      if (m.isPct) { const pct=v>1?v:v*100; const cls=pct>=95?'pct-high':pct>=80?'pct-mid':pct>0?'pct-low':'zero'; return`<td class="${cls}">${pct.toFixed(2)}%</td>`; }
       return `<td>${v>0?v.toLocaleString('id-ID'):'<span class="zero">-</span>'}</td>`;
     }).join('');
     return `<tr><td>${m.label}</td>${cells}</tr>`;

@@ -163,7 +163,7 @@
   .plan-table td.status-sesuai { color: #10b981; font-weight: 600; }
   .plan-table td.status-tidak { color: #ef4444; font-weight: 600; }
   .plan-table tr.zone-row-s { background: #f8fafc; }
-
+  .plan-table tr.zone-row-ts {}
   .plan-table tr.total-row td { font-weight: 700; background: #f1f5f9; border-top: 2px solid #e2e8f0; }
   .plan-table tr:hover td { background: #f0fdf4; }
   .plan-table tr.total-row:hover td { background: #f1f5f9; }
@@ -504,7 +504,7 @@ async function renderGrouper() {
       }
       return `<td>${v > 0 ? Math.round(v).toLocaleString('id-ID') : '<span class="zero">-</span>'}</td>`;
     }).join('');
-    return `<tr>${cells}</tr>`;
+    return `<tr><td>${label}</td>${cells}</tr>`;
   }).join('');
 
   document.getElementById('content').innerHTML = `
@@ -1414,7 +1414,7 @@ function renderOverview() {
   const summaryDates = (globalSummary?.dates||[]).filter(d => inRange(d));
   const summaryRows = (globalSummary?.metrics||[]).filter(m=>m.label!=='Description').map(m => {
     const isPct = m.isPct !== undefined ? m.isPct : (m.label.includes('%') && !['Pick to PF if Completion 100%'].includes(m.label));
-    const cells = summaryDates.map(d => { const val=m.daily[d]||0; if(!val)return'<td><span class="zero">-</span></td>'; if(isPct)return`<td class="${pctClassDec(val)}">${Math.round(val*100)}%</td>`; return`<td>${Math.round(val).toLocaleString('id-ID')}</td>`; }).join('');
+    const cells = summaryDates.map(d => { const val=m.daily[d]||0; if(!val)return'<td><span class="zero">-</span></td>'; if(isPct)return`<td class="${pctClassDec(val)}">${(val*100).toFixed(2)}%</td>`; return`<td>${Math.round(val).toLocaleString('id-ID')}</td>`; }).join('');
     return `<tr class="${isPct?'pct-row':''}"><td>${m.label}</td>${cells}</tr>`;
   }).join('');
   const summaryHeaders = summaryDates.map(d => { const parts=d.split('/'); return`<th>${parts[0]}/${parts[1]}</th>`; }).join('');
@@ -1705,7 +1705,7 @@ async function renderLostReport() {
   const tabBar = `<div style="display:flex;gap:8px;margin-bottom:16px;"><button onclick="ldpFoundTab='found';destroyCharts();renderLdpFound()" style="padding:6px 16px;font-size:11px;font-weight:600;border-radius:8px;border:1px solid #e2e8f0;cursor:pointer;background:#f8fafc;color:#64748b">✅ LDP Found</button><button onclick="ldpFoundTab='report';renderLostReport()" style="padding:6px 16px;font-size:11px;font-weight:600;border-radius:8px;border:1px solid #e2e8f0;cursor:pointer;background:#1d4ed8;color:#fff">📊 Source Lost</button></div>`;
   const tableRows = sourcesFiltered.map(s=>`<tr><td style="font-weight:600;color:#0f172a">${s.name}</td><td style="color:#ef4444;font-weight:600;text-align:right">${s.filtTotal.toLocaleString('id-ID')}</td><td style="text-align:right">${grandTotal>0?(s.filtTotal/grandTotal*100).toFixed(1):'0.0'}%</td><td style="text-align:right;color:#94a3b8">${s.total.toLocaleString('id-ID')}</td></tr>`).join('');
   const dateHeaders = filtDates.map(d=>`<th>${d.dateStr.slice(0,5)}</th>`).join('');
-  const dailyRows = sourcesFiltered.map(s=>`<tr>${filtDates.map(d=>{const v=s.daily[d.isoDate]||0;return`<td>${v>0?v.toLocaleString('id-ID'):'<span class="zero">-</span>'}</td>`;}).join('')}<td style="font-weight:700;color:#ef4444">${s.filtTotal.toLocaleString('id-ID')}</td></tr>`).join('');
+  const dailyRows = sourcesFiltered.map(s=>`<tr><td style="font-weight:600;color:#334155">${s.name}</td>${filtDates.map(d=>{const v=s.daily[d.isoDate]||0;return`<td>${v>0?v.toLocaleString('id-ID'):'<span class="zero">-</span>'}</td>`;}).join('')}<td style="font-weight:700;color:#ef4444">${s.filtTotal.toLocaleString('id-ID')}</td></tr>`).join('');
 
   document.getElementById('content').innerHTML = `
   ${dateRangeBadge()}${tabBar}

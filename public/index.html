@@ -287,15 +287,7 @@ function getFromTo() { return { from: document.getElementById('dateFrom').value,
 function inRange(dateStr) {
   const { from, to } = getFromTo();
   const parts = dateStr.split('/');
-  // Handle both dd/MM/yyyy and dd/MM formats
-  let iso;
-  if (parts.length === 3) {
-    // dd/MM/yyyy format
-    iso = `${parts[2]}-${parts[1].padStart(2,'0')}-${parts[0].padStart(2,'0')}`;
-  } else {
-    // dd/MM format - assume 2026
-    iso = `2026-${parts[1].padStart(2,'0')}-${parts[0].padStart(2,'0')}`;
-  }
+  let iso = parts.length===3 ? `${parts[2]}-${parts[1]}-${parts[0]}` : `2026-${parts[1]}-${parts[0]}`;
   if (from && iso < from) return false;
   if (to   && iso > to)   return false;
   return true;

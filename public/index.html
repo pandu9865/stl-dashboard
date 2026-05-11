@@ -8,25 +8,9 @@
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  :root{
-    --bg:#f1f5f9;
-    --card:#ffffff;
-    --text:#0f172a;
-    --muted:#64748b;
-    --line:#e2e8f0;
-    --line-soft:#f1f5f9;
-    --brand:#1d4ed8;
-    --brand-soft:#eff6ff;
-    --success:#10b981;
-    --warn:#f59e0b;
-    --danger:#ef4444;
-    --radius:10px;
-    --shadow:0 1px 2px rgba(2,6,23,.04);
-  }
-  html, body { height: 100%; }
-  body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: #1e293b; display: flex; height: 100vh; overflow: hidden; line-height: 1.35; -webkit-font-smoothing: antialiased; }
+  body { font-family: 'Segoe UI', sans-serif; background: #f1f5f9; color: #1e293b; display: flex; height: 100vh; overflow: hidden; }
 
-  .sidebar { width: 220px; flex-shrink: 0; background: #0f172a; display: flex; flex-direction: column; overflow-y: auto; transition: width .2s ease; }
+  .sidebar { width: 220px; flex-shrink: 0; background: #0f172a; display: flex; flex-direction: column; overflow-y: auto; }
   .sidebar-logo { padding: 20px 18px 16px; border-bottom: 1px solid #1e293b; }
   .sidebar-logo .title { font-size: 13px; font-weight: 800; color: #f8fafc; }
   .sidebar-logo .sub { font-size: 10px; color: #475569; margin-top: 2px; }
@@ -51,8 +35,8 @@
 
   .sidebar-bottom { margin-top: auto; padding: 12px; border-top: 1px solid #1e293b; font-size: 10px; color: #334155; text-align: center; }
 
-  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
-  .topbar { background: #fff; border-bottom: 1px solid #e2e8f0; padding: 12px 24px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; gap: 16px; flex-wrap: wrap; position: sticky; top: 0; z-index: 20; }
+  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .topbar { background: #fff; border-bottom: 1px solid #e2e8f0; padding: 12px 24px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; gap: 16px; flex-wrap: wrap; }
   .topbar-left h1 { font-size: 15px; font-weight: 700; color: #0f172a; }
   .topbar-left .meta { font-size: 11px; color: #94a3b8; }
 
@@ -65,24 +49,17 @@
   .qf-btn { padding: 5px 10px; font-size: 10px; font-weight: 600; border: 1px solid #e2e8f0; border-radius: 6px; background: #f8fafc; color: #64748b; cursor: pointer; transition: all 0.15s; }
   .qf-btn:hover { background: #e2e8f0; }
   .qf-btn.active { background: #1d4ed8; color: #fff; border-color: #1d4ed8; }
-  .refresh-btn { padding: 6px 14px; font-size: 11px; font-weight: 600; background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; border-radius: 6px; cursor: pointer; transition: all .15s ease; }
+  .refresh-btn { padding: 6px 14px; font-size: 11px; font-weight: 600; background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; border-radius: 6px; cursor: pointer; }
   .refresh-btn:hover { background: #e2e8f0; }
-  .refresh-btn:focus-visible,
-  .qf-btn:focus-visible,
-  .change-file-btn:focus-visible,
-  .ib-reset-btn:focus-visible,
-  .filter-bar input[type="date"]:focus-visible,
-  .nav-item:focus-visible,
-  .nav-sub-item:focus-visible { outline: 2px solid #93c5fd; outline-offset: 1px; }
 
-  .content { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 20px 24px; }
+  .content { flex: 1; overflow-y: auto; padding: 20px 24px; }
 
   .date-range-badge { display: inline-flex; align-items: center; gap: 6px; background: #eff6ff; border: 1px solid #bfdbfe; color: #1d4ed8; font-size: 10px; font-weight: 600; padding: 4px 10px; border-radius: 999px; margin-bottom: 16px; }
 
-  .kpi-row { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 10px; margin-bottom: 16px; }
-  .kpi-row-5 { display: grid; grid-template-columns: repeat(5, minmax(0,1fr)); gap: 10px; margin-bottom: 12px; }
-  .kpi-row-3 { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 10px; margin-bottom: 16px; }
-  .kpi-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px 16px; box-shadow: var(--shadow); min-width: 0; }
+  .kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 16px; }
+  .kpi-row-5 { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 12px; }
+  .kpi-row-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px; }
+  .kpi-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px 16px; }
   .kl { font-size: 9px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
   .kv { font-size: 22px; font-weight: 800; color: #0f172a; line-height: 1; }
   .ks { font-size: 9px; color: #cbd5e1; margin-top: 3px; }
@@ -129,9 +106,9 @@
 
   .chart-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px; margin-bottom: 16px; }
   .chart-card .chart-title { font-size: 11px; font-weight: 700; color: #475569; margin-bottom: 12px; }
-  .chart-wrap { position: relative; height: 220px; min-width: 0; }
+  .chart-wrap { position: relative; height: 220px; }
 
-  .chart-grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 16px; margin-bottom: 16px; }
+  .chart-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
 
   .section-page-header { margin-bottom: 16px; }
   .section-page-header h2 { font-size: 18px; font-weight: 800; color: #0f172a; }
@@ -141,44 +118,6 @@
 
   .empty-state { text-align: center; padding: 40px; color: #94a3b8; font-size: 13px; }
   .loading { text-align: center; padding: 60px; color: #94a3b8; font-size: 14px; }
-  .nav-item, .nav-parent, .nav-sub-item, .qf-btn, .refresh-btn, .change-file-btn, .ib-reset-btn { user-select: none; }
-  .table-card, .chart-card { box-shadow: var(--shadow); }
-  .overview-table-wrap, .table-container, .scroll-right, .ib-table-wrap { scrollbar-width: thin; }
-
-  @media (max-width: 1200px) {
-    .sidebar { width: 192px; }
-    .topbar { padding: 10px 16px; }
-    .content { padding: 14px 16px; }
-    .kpi-row-5 { grid-template-columns: repeat(3, minmax(0,1fr)); }
-    .kpi-row { grid-template-columns: repeat(2, minmax(0,1fr)); }
-    .kpi-row-3 { grid-template-columns: repeat(2, minmax(0,1fr)); }
-    .chart-grid-2 { grid-template-columns: 1fr; }
-  }
-
-  @media (max-width: 900px) {
-    body { overflow: auto; height: auto; }
-    .sidebar { width: 78px; }
-    .sidebar-logo .sub, .sidebar-section, .sidebar-bottom { display: none; }
-    .sidebar-logo .title { font-size: 11px; line-height: 1.2; }
-    .nav-parent-left { gap: 6px; }
-    .nav-item, .nav-parent, .nav-sub-item { font-size: 0; padding-left: 10px; padding-right: 10px; }
-    .nav-item .icon, .nav-parent .icon { font-size: 14px; width: 20px; }
-    .nav-arrow { display: none; }
-    .topbar { gap: 8px; }
-    .topbar-left h1 { font-size: 14px; }
-    .topbar-left .meta { display: none; }
-    .filter-bar { width: 100%; flex-wrap: wrap; }
-    .kpi-row, .kpi-row-3, .kpi-row-5 { grid-template-columns: 1fr; }
-    .overview-table thead tr th:first-child,
-    .summary-table thead tr th:first-child,
-    .overview-table tbody tr td:first-child,
-    .summary-table tbody tr td:first-child,
-    .overview-table tfoot tr td:first-child { position: static; }
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    * { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
-  }
   .dot{animation:blink 1.2s infinite;display:inline-block}
   .dot:nth-child(2){animation-delay:.2s}.dot:nth-child(3){animation-delay:.4s}
   @keyframes blink{0%,80%,100%{opacity:0}40%{opacity:1}}
@@ -391,14 +330,6 @@ function calcKPI(daily) {
   };
 }
 
-function escHtml(v) {
-  return String(v ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '<')
-    .replace(/>/g, '>')
-    .replace(/"/g, '"')
-    .replace(/'/g, '&#39;');
-}
 function fmt(n) { if (!n||n===0) return '<span class="zero">-</span>'; return Number(n).toLocaleString('id-ID'); }
 function fmtP(n) { if (!n||n===0) return '-'; return Number(n).toLocaleString('id-ID'); }
 function pctClass(p) { if (!p||p===0) return 'zero'; if (p>=95) return 'pct-high'; if (p>=80) return 'pct-mid'; return 'pct-low'; }
@@ -886,25 +817,11 @@ function parseCSV(text) {
 }
 
 function parseCSVLine(line) {
-  const result = [];
-  let cur = '';
-  let inQ = false;
-
+  const result = []; let cur = ''; let inQ = false;
   for (let i = 0; i < line.length; i++) {
-    const ch = line[i];
-    if (ch === '"') {
-      if (inQ && line[i + 1] === '"') {
-        cur += '"';
-        i++;
-      } else {
-        inQ = !inQ;
-      }
-    } else if (ch === ',' && !inQ) {
-      result.push(cur);
-      cur = '';
-    } else {
-      cur += ch;
-    }
+    if (line[i] === '"') { inQ = !inQ; }
+    else if (line[i] === ',' && !inQ) { result.push(cur); cur = ''; }
+    else { cur += line[i]; }
   }
   result.push(cur);
   return result;
@@ -1244,9 +1161,9 @@ function buildIbTable(rows) {
   tbody.innerHTML = rows.map((row,ri) => {
     const cells = headers.map(h => {
       let val = row[h] || '';
-      if (h === 'po_status') return `<td><span class="${STATUS_COLORS[val]||''}">${escHtml(val.replace('09.','').replace('08.',''))}</span></td>`;
-      if (h === 'lateness_status' || h === 'arrival_status') return `<td><span class="${LATE_COLORS[val]||''}">${escHtml(val)}</span></td>`;
-      return `<td>${escHtml(val)}</td>`;
+      if (h === 'po_status') return `<td><span class="${STATUS_COLORS[val]||''}">${val.replace('09.','').replace('08.','')}</span></td>`;
+      if (h === 'lateness_status' || h === 'arrival_status') return `<td><span class="${LATE_COLORS[val]||''}">${val}</span></td>`;
+      return `<td>${val}</td>`;
     }).join('');
     return `<tr data-idx="${ri}">${cells}</tr>`;
   }).join('');
@@ -1500,7 +1417,17 @@ function renderOverview() {
     return `<tr><td class="${off}${td}">${r.tanggal}${isToday?' 📍':''}</td><td class="${off}${td}">${fmt(r.qtySSInv)}</td><td class="${off}${td}">${fmt(r.qtySSPut)}</td><td class="${off}${td}">${fmt(r.qtySystem)}</td><td class="${off}${td}">${fmt(r.qtyManual)}</td><td class="${off}${td}">${fmt(r.qtyMilkrun)}</td><td class="${off}${td}" style="font-weight:700;color:#0f172a">${fmtP(r.totalTask)||'-'}</td><td class="${off}${td} val-act">${fmtP(r.qtyMove)||'-'}</td><td class="${off}${td}">${r.pic||'-'}</td><td class="${off}${td}">${fr}</td><td class="${off}${td}">${r.prodDay?Math.round(r.prodDay).toLocaleString('id-ID'):'-'}</td></tr>`;
   }).join('');
   const totSSInv=active.reduce((s,r)=>s+r.qtySSInv,0), totSSPut=active.reduce((s,r)=>s+r.qtySSPut,0), totSys=active.reduce((s,r)=>s+r.qtySystem,0), totMan=active.reduce((s,r)=>s+r.qtyManual,0), totMilk=active.reduce((s,r)=>s+r.qtyMilkrun,0), totPIC=active.reduce((s,r)=>s+r.pic,0);
+  // % Pick to PF Real — dari summary, sesuai filter tanggal
   const summaryDates = (globalSummary?.dates||[]).filter(d => inRange(d));
+  const pickToPFMetric = (globalSummary?.metrics||[]).find(m => m.label === '% Pick to PF Real');
+  const pickToPFVals = summaryDates.map(d => pickToPFMetric?.daily[d]).filter(v => v != null && v > 0);
+  const pickToPFAvg  = pickToPFVals.length === 1
+    ? pickToPFVals[0]
+    : (pickToPFVals.length > 1 ? pickToPFVals.reduce((s,v)=>s+v,0)/pickToPFVals.length : null);
+  const pickToPFDisplay = pickToPFAvg != null ? (pickToPFAvg*100).toFixed(2)+'%' : '-';
+  const pickToPFCls = pickToPFAvg >= 0.95 ? 'c-green' : pickToPFAvg >= 0.80 ? 'c-yellow' : pickToPFAvg > 0 ? 'c-red' : '';
+  const pickToPFSub = summaryDates.length === 1 ? summaryDates[0].slice(0,5) : `avg ${pickToPFVals.length} hari`;
+
   const summaryRows = (globalSummary?.metrics||[]).filter(m=>m.label!=='Description').map(m => {
     const isPct = m.isPct !== undefined ? m.isPct : (m.label.includes('%') && !['Pick to PF if Completion 100%'].includes(m.label));
     const cells = summaryDates.map(d => { const val=m.daily[d]||0; if(!val)return'<td><span class="zero">-</span></td>'; if(isPct)return`<td class="${pctClassDec(val)}">${(val*100).toFixed(2)}%</td>`; return`<td>${Math.round(val).toLocaleString('id-ID')}</td>`; }).join('');
@@ -1517,10 +1444,11 @@ function renderOverview() {
 
   document.getElementById('content').innerHTML = `
   ${dateRangeBadge()}
-  <div class="kpi-row" style="grid-template-columns:repeat(5,1fr)">
+  <div class="kpi-row" style="grid-template-columns:repeat(6,1fr)">
     <div class="kpi-card"><div class="kl">Total Task</div><div class="kv">${fmtP(totTask)}</div><div class="ks">qty task keseluruhan</div></div>
     <div class="kpi-card"><div class="kl">Total Qty Move</div><div class="kv c-orange">${fmtP(totMove)}</div><div class="ks">actual move</div></div>
     <div class="kpi-card"><div class="kl">Avg %FR</div><div class="kv ${frCls}">${avgFR?avgFR+'%':'-'}</div><div class="ks">rata-rata fill rate</div></div>
+    <div class="kpi-card"><div class="kl">% Pick to PF Real</div><div class="kv ${pickToPFCls}">${pickToPFDisplay}</div><div class="ks">${pickToPFSub}</div></div>
     <div class="kpi-card"><div class="kl">Avg Prod/Day</div><div class="kv c-blue">${avgProd?avgProd.toLocaleString('id-ID'):'-'}</div><div class="ks">produktivitas harian</div></div>
     <div class="kpi-card"><div class="kl">Total MP</div><div class="kv">${totMP}</div><div class="ks">man power days</div></div>
   </div>
@@ -1829,9 +1757,9 @@ async function renderLostReport() {
 function tsRegulerTabBar() {
   const btn = (tab, label) => `<button onclick="tsRegulerTab='${tab}';renderTsReguler()" style="padding:6px 16px;font-size:11px;font-weight:600;border-radius:8px;border:1px solid #e2e8f0;cursor:pointer;background:${tsRegulerTab===tab?'#1d4ed8':'#f8fafc'};color:${tsRegulerTab===tab?'#fff':'#64748b'}">${label}</button>`;
   return `<div style="display:flex;gap:8px;margin-bottom:16px;">
-    ${btn('daily','📊 Daily Report')}
-    ${btn('weekly','📋 Hourly Report Admin')}
-    ${btn('zona','🗺️ Daily Allocated Zone')}
+    ${btn('daily','📊 Daily Metrics')}
+    ${btn('weekly','📋 Weekly Report')}
+    ${btn('zona','🗺️ Daily Zona')}
   </div>`;
 }
 

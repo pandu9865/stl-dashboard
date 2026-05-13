@@ -1355,7 +1355,7 @@ async function renderPutaway() {
     const cells = filteredDates.map(d => {
       const v = m.daily[d];
       if (v===null||v===undefined) return '<td><span class="zero">-</span></td>';
-      if (m.isPct) { const pct=v>1?v:v*100; const cls=pct>=95?'pct-high':pct>=80?'pct-mid':pct>0?'pct-low':'zero'; return`<td class="${cls}">${pct.toFixed(2)}%</td>`; }
+      if (m.isPct) { const pct=(v>1&&m.label!=='Actual Prod %')?v:v*100; const cls=pct>=95?'pct-high':pct>=80?'pct-mid':pct>0?'pct-low':'zero'; return`<td class="${cls}">${pct.toFixed(2)}%</td>`; }
       return `<td>${v>0?v.toLocaleString('id-ID'):'<span class="zero">-</span>'}</td>`;
     }).join('');
     return `<tr><td>${m.label}</td>${cells}</tr>`;

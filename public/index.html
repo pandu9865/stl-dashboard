@@ -1359,7 +1359,7 @@ async function renderPutaway() {
   const pct = (m.label === 'Actual Prod %') 
     ? (v > 2 ? v : v * 100) 
     : (v > 1 ? v : v * 100); const cls=pct>=95?'pct-high':pct>=80?'pct-mid':pct>0?'pct-low':'zero'; return`<td class="${cls}">${pct.toFixed(2)}%</td>`; }
-      return `<td>${v>0?v.toLocaleString('id-ID'):'<span class="zero">-</span>'}</td>`;
+      return `<td>${v>0?Math.round(v).toLocaleString('id-ID'):'<span class="zero">-</span>'}</td>`;
     }).join('');
     return `<tr><td>${m.label}</td>${cells}</tr>`;
   }).join('');
